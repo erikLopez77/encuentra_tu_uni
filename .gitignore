@@ -1,0 +1,10 @@
+
+# Entornos virtuales (el más importante)
+backend/djenv/
+
+ssproyecto/static/admin/
+
+# Python (archivos compilados)
+**/__pycache__/
+# Base de datos local (SQLite)
+db.sqlite3

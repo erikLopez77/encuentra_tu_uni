@@ -1,10 +1,32 @@
 
 # Entornos virtuales (el más importante)
 backend/djenv/
-
+*.pyc
 ssproyecto/static/admin/
-
+.env
 # Python (archivos compilados)
 **/__pycache__/
 # Base de datos local (SQLite)
 db.sqlite3
+
+
+frontend/node_modules/
+
+# Archivos de compilación (lo que genera el comando build)
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# Logs de errores
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caché de editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Caché de Vite
+frontend/.vite/

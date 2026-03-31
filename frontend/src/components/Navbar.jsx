@@ -11,7 +11,7 @@ const Navbar = () => {
           {/* LADO IZQUIERDO: Logo o Nombre */}
           <div className="flex-shrink-0">
             <Link to="/" className="text-2xl font-extrabold text-blue-600 tracking-tight">
-              EncuentraTuUni
+              EncuentraTuFuturo
             </Link>
           </div>
 

@@ -52,11 +52,12 @@ class Command(BaseCommand):
                         # Evitamos procesar cosas que no sean escuelas (filtros básicos)
                         if any(word in nombre.upper() for word in ["KARAOKE", "RESTAURANTE", "HOTEL"]):
                             continue
-
+                        photos = res.get('photos', [])
+                        foto_ref = photos[0].get('photo_reference') if photos else None
                         direccion = res.get('formatted_address', '')
                         partes_dir = direccion.split(',')
                         estado = partes_dir[-3].strip() if len(partes_dir) >= 3 else ciudad
-
+           
                         obj, created = Universidad.objects.update_or_create(
                             google_place_id=place_id,
                             defaults={
@@ -65,7 +66,8 @@ class Command(BaseCommand):
                                 'ciudad': ciudad,
                                 'rating_google': res.get('rating', 0.0),
                                 'tipo': 'PUB' if any(x in nombre.upper() for x in ['AUTÓNOMA', 'POLITÉCNICO', 'PÚBLICA', 'FEDERAL']) else 'PRI',
-                                'sitio_web': f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+                                'sitio_web': f"https://www.google.com/maps/place/?q=place_id:{place_id}",
+                                'foto_reference': foto_ref,
                             }
                         )
                         

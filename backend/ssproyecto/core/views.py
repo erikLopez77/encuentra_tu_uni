@@ -17,3 +17,8 @@ class UniversidadListView(generics.ListAPIView):
         else:
             queryset = queryset[:20] # Por defecto mostramos 20 para no saturar
         return queryset
+    
+class UniversidadDetailView(generics.RetrieveAPIView):
+    queryset = Universidad.objects.all()
+    serializer_class = UniversidadSerializer
+    permission_classes = [permissions.AllowAny]

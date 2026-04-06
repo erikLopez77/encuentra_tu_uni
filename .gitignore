@@ -6,8 +6,6 @@ ssproyecto/static/admin/
 .env
 # Python (archivos compilados)
 **/__pycache__/
-# Base de datos local (SQLite)
-db.sqlite3
 
 
 frontend/node_modules/

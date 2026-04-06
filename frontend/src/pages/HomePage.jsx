@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-
+import { Link } from 'react-router-dom';
 const HomePage = () => {
   const [unis, setUnis] = useState([]);
   const [estado, setEstado] = useState('');
@@ -71,41 +71,38 @@ const HomePage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {unis.map((uni, index) => (
-              <div key={uni.id || index} className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-500 bg-blue-50 px-2 py-1 rounded">
-                    #{index + 1} Ranking
-                  </span>
-                  <div className="flex items-center bg-yellow-50 px-2 py-1 rounded-lg">
-                    <span className="text-yellow-600 font-bold mr-1">★</span>
-                    <span className="text-yellow-700 font-medium">{uni.rating_google}</span>
+            <Link to={`/universidad/${uni.id}`} key={uni.id} className="block no-underline">
+                <div className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="text-xs font-bold uppercase tracking-wider text-blue-500 bg-blue-50 px-2 py-1 rounded">
+                      #{index + 1} Ranking
+                    </span>
+                    <div className="flex items-center bg-yellow-50 px-2 py-1 rounded-lg">
+                      <span className="text-yellow-600 font-bold mr-1">★</span>
+                      <span className="text-yellow-700 font-medium">{uni.rating_google}</span>
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                    {uni.nombre}
+                  </h3>
+                  <p className="text-gray-500 text-sm mt-1 mb-4 flex items-center">
+                    <span className="mr-1">📍</span> {uni.ciudad}, {uni.estado}
+                  </p>
+
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                      uni.tipo === 'PUB' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'
+                    }`}>
+                      {uni.tipo === 'PUB' ? 'PÚBLICA' : 'PRIVADA'}
+                    </span>
+                    <span className="text-blue-600 text-sm font-bold">Ver detalles →</span>
                   </div>
                 </div>
-                
-                <h3 className="text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
-                  {uni.nombre}
-                </h3>
-                <p className="text-gray-500 text-sm mt-1 mb-4 flex items-center">
-                  <span className="mr-1">📍</span> {uni.ciudad}, {uni.estado}
-                </p>
-
-                <div className="flex items-center justify-between border-t pt-4">
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                    uni.tipo === 'PUB' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'
-                  }`}>
-                    {uni.tipo === 'PUB' ? 'PÚBLICA' : 'PRIVADA'}
-                  </span>
-                  <a 
-                    href={uni.sitio_web} 
-                    target="_blank" 
-                    className="text-blue-600 text-sm font-bold hover:text-blue-800 transition-colors"
-                  >
-                    Ver Sitio →
-                  </a>
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
+          
         )}
       </section>
     </div>

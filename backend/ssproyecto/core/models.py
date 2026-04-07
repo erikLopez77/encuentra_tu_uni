@@ -20,7 +20,7 @@ class Universidad(models.Model):
     class Meta:
         verbose_name_plural = "Universidades"
         # ordena por el ranking de estrellas
-        ordering = ['-rating_google']
+        ordering = ['-rating_google', 'nombre'] # evitar empates
     def __str__(self):
         return self.nombre
 

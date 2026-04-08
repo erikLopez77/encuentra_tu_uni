@@ -31,6 +31,7 @@ const HomePage = () => {
         setLoading(false);
       }
     };
+    document.title = "Inicio | EncuentraTuFuturo";
     fetchRanking();
     // Al cambiar de página, hacemos scroll suave hacia arriba de la sección
     window.scrollTo({ top: 700, behavior: 'smooth' });

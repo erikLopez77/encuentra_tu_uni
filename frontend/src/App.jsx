@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import UniversidadDetalle from './pages/UniversidadDetalle';
 import Faqs from './pages/Faqs';
 import Login from './pages/Login';
+import Footer from './components/Footer';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/faqs" element={<Faqs />} />
           </Routes>
         </main>
+        <Footer />
       </div>
     </Router>
   );

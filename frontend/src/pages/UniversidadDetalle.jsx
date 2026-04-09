@@ -27,6 +27,7 @@ const UniversidadDetalle = () => {
         console.error("Error al obtener la universidad", error);
       }
     };
+    document.title = "Universidad | EncuentraTuFuturo";
     getDetalle();
   }, [id]);
 

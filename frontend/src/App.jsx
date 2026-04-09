@@ -5,6 +5,8 @@ import HomePage from './pages/HomePage';
 import UniversidadDetalle from './pages/UniversidadDetalle';
 import Faqs from './pages/Faqs';
 import Login from './pages/Login';
+import CreateProfile from './pages/CreateProfile';
+import RetriveAccount from './pages/RetriveAccount';
 import Footer from './components/Footer';
 
 function App() {
@@ -18,6 +20,8 @@ function App() {
             <Route path="/universidad/:id" element={<UniversidadDetalle/>}/>
             <Route path="/login" element={<Login/>} />
             <Route path="/faqs" element={<Faqs />} />
+            <Route path="/crear-cuenta" element={<CreateProfile />} />
+            <Route path="/recuperar-cuenta" element={<RetriveAccount />} />
           </Routes>
         </main>
         <Footer />

@@ -1,22 +1,73 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Login = () => {
     const backgroundUrl = "https://images.unsplash.com/photo-1568667256549-094345857637?q=80&w=2000&auto=format&fit=crop";
     
-    // 1. Estados para manejar el mensaje de éxito
     const [showSuccess, setShowSuccess] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    
     const location = useLocation();
+    const navigate = useNavigate();
 
     useEffect(() => {
         document.title = "Login | EncuentraTuFuturo";
         
-        // 2. Detectar si venimos de un registro exitoso (?registered=true)
         const params = new URLSearchParams(location.search);
         if (params.get('registered') === 'true') {
             setShowSuccess(true);
         }
     }, [location]);
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        const soapRequest = `<?xml version="1.0" encoding="utf-8"?>
+<soap11env:Envelope xmlns:soap11env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="ssproyecto.auth.soap">
+    <soap11env:Body>
+        <tns:authenticate_user>
+            <tns:username>${email}</tns:username>
+            <tns:password>${password}</tns:password>
+        </tns:authenticate_user>
+    </soap11env:Body>
+</soap11env:Envelope>`;
+
+        try {
+            const response = await fetch('http://localhost:8000/api/soap_login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/xml',
+                },
+                credentials: 'include', 
+                body: soapRequest
+            });
+
+            const textResponse = await response.text();
+            
+            if (textResponse.includes("SUCCESS")) {
+                navigate('/dashboard');
+            } else if (textResponse.includes("INVALID_CREDENTIALS")) {
+                setError('Correo o contraseña incorrectos.');
+            } else if (textResponse.includes('faultstring')) {
+                // Extraer el mensaje del SOAP Fault para debug
+                const match = textResponse.match(/\u003cfaultstring\u003e(.+?)\u003c\/faultstring\u003e/);
+                const faultMsg = match ? match[1] : 'Error desconocido en el servicio';
+                setError(`Error del servidor: ${faultMsg}`);
+            } else {
+                setError('Respuesta inesperada del servicio de autenticación.');
+            }
+        } catch (err) {
+            setError('Error de red. Asegúrate de que el backend y Redis están en ejecución.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div 
@@ -27,7 +78,6 @@ const Login = () => {
 
             <div className="max-w-md w-full bg-white/95 p-10 rounded-[2.5rem] shadow-2xl backdrop-blur-md border border-white/20 relative z-10 transition-all duration-300">
                 
-                {/* 3. Mensaje de Éxito Estético */}
                 {showSuccess && (
                     <div className="mb-8 p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 rounded-r-xl relative animate-bounce-subtle">
                         <div className="flex items-center gap-3">
@@ -38,7 +88,7 @@ const Login = () => {
                             </div>
                             <div>
                                 <p className="font-black text-sm uppercase tracking-wide">¡Bienvenido!</p>
-                                <p className="text-xs font-semibold opacity-90">Tu cuenta de EncuentraTuFuturo ha sido creada. Ya puedes iniciar sesión.</p>
+                                <p className="text-xs font-semibold opacity-90">Tu cuenta ha sido creada. Ya puedes iniciar sesión.</p>
                             </div>
                         </div>
                         <button 
@@ -52,6 +102,12 @@ const Login = () => {
                     </div>
                 )}
 
+                {error && (
+                    <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-800 rounded-r-xl">
+                        <p className="text-sm font-semibold">{error}</p>
+                    </div>
+                )}
+
                 <div className="text-center mb-10">
                     <h2 className="text-4xl font-black text-blue-600 tracking-tighter">
                         EncuentraTuFuturo
@@ -61,7 +117,7 @@ const Login = () => {
                     </p>
                 </div>
 
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleLogin}>
                     <div>
                         <label className="block text-sm font-bold text-slate-800 mb-2 ml-1">
                             Correo electrónico
@@ -71,6 +127,9 @@ const Login = () => {
                             type="email" 
                             name="email" 
                             placeholder="ejemplo@universidad.edu.mx"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
                             className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all duration-200 shadow-inner"
                         />
                     </div>
@@ -87,12 +146,19 @@ const Login = () => {
                             type="password" 
                             name="password" 
                             placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
                             className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all duration-200 shadow-inner"
                         />
                     </div>
 
-                    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98] mt-6 text-lg">
-                        Ingresar a mi cuenta
+                    <button 
+                        type="submit"
+                        disabled={loading}
+                        className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98] mt-6 text-lg ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                        {loading ? 'Verificando...' : 'Ingresar a mi cuenta'}
                     </button>
                 </form>
 

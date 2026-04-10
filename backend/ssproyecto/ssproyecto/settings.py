@@ -45,6 +45,18 @@ INSTALLED_APPS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # Puerto Vite/React
 ]
+CORS_ALLOW_CREDENTIALS = True  # Necesario para que el navegador envíe/reciba cookies de sesión
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',  # Necesario para 'text/xml' de las peticiones SOAP
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',

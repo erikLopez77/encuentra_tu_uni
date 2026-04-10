@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import CreateProfile from './pages/CreateProfile';
 import RetriveAccount from './pages/RetriveAccount';
 import UserDashboard from './pages/UserDashboard';
+import RankingPage from './pages/RankingPage';
 import Footer from './components/Footer';
 
 const MainLayout = () => (
@@ -47,7 +48,7 @@ function App() {
         <Route element={<AuthLayout />}>
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/favoritos" element={<UserDashboard />} />
-          <Route path="/ranking" element={<UserDashboard />} />
+          <Route path="/ranking" element={<RankingPage />} />
           <Route path="/perfil" element={<UserDashboard />} />
         </Route>
       </Routes>

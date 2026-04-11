@@ -1,6 +1,8 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.core.cache import cache
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 from .models import Universidad, Perfil
 from .serializers import UniversidadSerializer, PerfilSerializer, RegisterSerializer
 from django.contrib.auth.models import User
@@ -23,6 +25,7 @@ class UniversidadDetailView(generics.RetrieveAPIView):
     serializer_class = UniversidadSerializer
     permission_classes = [permissions.AllowAny]
 
+@method_decorator(ensure_csrf_cookie, name='retrieve')
 class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PerfilSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -30,6 +33,8 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
         #generamos key para redis basada en el ID usuario
         cache_key=f"perfil_user_{self.request.user.id}"
         perfil=cache.get(cache_key)
+        print(f"DEBUG: Usuario en la petición: {self.request.user}") 
+        print(f"DEBUG: ¿Está autenticado?: {self.request.user.is_authenticated}")
         if not perfil:
             #si no está en Redis, lo buscamos en la DB (lo creamos si no existe))
             perfil,created=Perfil.objects.get_or_create(usuario=self.request.user)

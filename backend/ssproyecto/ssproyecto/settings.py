@@ -9,6 +9,34 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
+CORS_ALLOW_CREDENTIALS = True  # Necesario para que el navegador envíe/reciba cookies de sesión
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# ESTO ES LO QUE SUELE FALTAR:
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',  # Necesario para 'text/xml' de las peticiones SOAP
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+# Para que las sesiones se guarden en Redis
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# Asegúrate de que las cookies sean accesibles por Axios
+CSRF_COOKIE_HTTPONLY = False  # Permite que JS lea la cookie CSRF
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 from pathlib import Path
 
@@ -42,21 +70,6 @@ INSTALLED_APPS = [
     'core'
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Puerto Vite/React
-]
-CORS_ALLOW_CREDENTIALS = True  # Necesario para que el navegador envíe/reciba cookies de sesión
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',  # Necesario para 'text/xml' de las peticiones SOAP
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -90,8 +103,12 @@ WSGI_APPLICATION = 'ssproyecto.wsgi.application'
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 12,
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ]
 }
 # Database
@@ -132,8 +149,6 @@ CACHES = {
         }
     }
 }
-# Para que las sesiones se guarden en Redis
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/

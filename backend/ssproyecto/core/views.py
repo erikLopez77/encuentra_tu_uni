@@ -1,8 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication
 from django.core.cache import cache
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.utils.decorators import method_decorator
 from .models import Universidad, Perfil
 from .serializers import UniversidadSerializer, PerfilSerializer, RegisterSerializer
 from django.contrib.auth.models import User
@@ -25,20 +24,27 @@ class UniversidadDetailView(generics.RetrieveAPIView):
     serializer_class = UniversidadSerializer
     permission_classes = [permissions.AllowAny]
 
-@method_decorator(ensure_csrf_cookie, name='retrieve')
 class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PerfilSerializer
     permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [SessionAuthentication] # Asegura que use sesiones
+
     def get_object(self):
-        #generamos key para redis basada en el ID usuario
-        cache_key=f"perfil_user_{self.request.user.id}"
-        perfil=cache.get(cache_key)
-        print(f"DEBUG: Usuario en la petición: {self.request.user}") 
-        print(f"DEBUG: ¿Está autenticado?: {self.request.user.is_authenticated}")
+        # Si llegamos aquí, IsAuthenticated ya pasó, así que user es válido
+        user = self.request.user
+        cache_key = f"perfil_user_{user.id}"
+        
+        # Intentamos obtener de caché
+        perfil = cache.get(cache_key)
+        
         if not perfil:
-            #si no está en Redis, lo buscamos en la DB (lo creamos si no existe))
-            perfil,created=Perfil.objects.get_or_create(usuario=self.request.user)
-            cache.set(cache_key,perfil,timeout=60*60) # cache por 1 hora
+            # Si no hay caché, obtenemos o creamos
+            perfil, created = Perfil.objects.get_or_create(usuario=user)
+            try:
+                cache.set(cache_key, perfil, timeout=3600)
+            except Exception as e:
+                print(f"Redis no disponible: {e}")
+        
         return perfil
     
     def update(self, request, *args, **kwargs):

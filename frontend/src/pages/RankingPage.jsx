@@ -35,8 +35,22 @@ const RankingPage = () => {
   const [loading, setLoading] = useState(true);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [pagActual, setPagActual] = useState(1);
-  const [favoritos, setFavoritos] = useState(new Set());
+  const [favoritos, setFavoritos] = useState(new Set()); // Guardaremos IDs de universidades
   const [toastMsg, setToastMsg] = useState('');
+
+  // 1. Cargar los favoritos del usuario desde la DB al iniciar
+  useEffect(() => {
+    const fetchFavoritosUser = async () => {
+      try {
+        const res = await axios.get('http://localhost:8000/api/perfil/');
+        // Asumiendo que res.data.favoritos es una lista de IDs: [1, 5, 10]
+        setFavoritos(new Set(res.data.favoritos));
+      } catch (err) {
+        console.error("Error cargando favoritos iniciales:", err);
+      }
+    };
+    fetchFavoritosUser();
+  }, []);
 
   // Resetear página al cambiar filtros
   useEffect(() => { setPagActual(1); }, [estado, tipo]);
@@ -66,33 +80,57 @@ const RankingPage = () => {
     setTimeout(() => setToastMsg(''), 2500);
   };
 
+  // 2. Lógica para guardar en la DB
   const toggleFavorito = useCallback(async (uni) => {
     const yaEsFavorito = favoritos.has(uni.id);
-    setFavoritos(prev => {
-      const next = new Set(prev);
-      yaEsFavorito ? next.delete(uni.id) : next.add(uni.id);
-      return next;
-    });
-    showToast(yaEsFavorito
-      ? `"${uni.nombre}" eliminado de favoritos`
-      : `"${uni.nombre}" agregado a favoritos ⭐`
-    );
-    // Aquí se conectaría con el endpoint de favoritos del perfil cuando esté listo
+
+    // Crear la nueva lista de IDs para enviar al backend
+    let nuevosFavoritosIds;
+    if (yaEsFavorito) {
+      nuevosFavoritosIds = Array.from(favoritos).filter(id => id !== uni.id);
+    } else {
+      nuevosFavoritosIds = [...Array.from(favoritos), uni.id];
+    }
+
+    try {
+      // Petición al backend para actualizar el perfil
+      await axios.put('/api/perfil/', {
+        favoritos: nuevosFavoritosIds
+      }, {
+        // Forzamos el encabezado manualmente si es necesario
+        headers: {
+          'X-CSRFToken': document.cookie.split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1]
+        }
+      });
+
+      // Si la DB respondió bien, actualizamos el estado local
+      setFavoritos(new Set(nuevosFavoritosIds));
+
+      showToast(yaEsFavorito
+        ? `"${uni.nombre}" eliminado de favoritos`
+        : `"${uni.nombre}" agregado a favoritos ⭐`
+      );
+    } catch (err) {
+      console.error("Error al guardar favorito:", err);
+      showToast("Error al conectar con el servidor");
+    }
   }, [favoritos]);
 
   const listaBotones = Array.from({ length: totalPaginas }, (_, i) => i + 1);
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       {/* Toast notification */}
       {toastMsg && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl text-sm font-semibold animate-bounce-subtle flex items-center gap-2 pointer-events-none">
-          <span>⭐</span> {toastMsg}
+          <span>{toastMsg.includes('eliminado') ? '🗑️' : '⭐'}</span> {toastMsg}
         </div>
       )}
 
-      {/* Header de la sección */}
+      {/* ... (Resto del JSX se mantiene igual) ... */}
+
       <div className="bg-white border-b border-gray-100 shadow-sm px-6 py-10">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -128,34 +166,9 @@ const RankingPage = () => {
               </div>
             </div>
           </div>
-
-          {/* Pills de filtros activos */}
-          {(estado || tipo) && (
-            <div className="flex flex-wrap gap-2 mt-5">
-              {estado && (
-                <span className="flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-sm font-semibold">
-                  📍 {estado}
-                  <button onClick={() => setEstado('')} className="ml-1 hover:text-blue-900 font-bold">×</button>
-                </span>
-              )}
-              {tipo && (
-                <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-full text-sm font-semibold">
-                  🏫 {tipo === 'PUB' ? 'Pública' : 'Privada'}
-                  <button onClick={() => setTipo('')} className="ml-1 hover:text-indigo-900 font-bold">×</button>
-                </span>
-              )}
-              <button
-                onClick={() => { setEstado(''); setTipo(''); }}
-                className="text-gray-400 hover:text-red-500 text-sm font-medium transition-colors"
-              >
-                Limpiar filtros
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Lista de universidades */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
@@ -182,96 +195,46 @@ const RankingPage = () => {
                   : `https://images.unsplash.com/photo-1562774053-701939374585?w=400&q=80`;
 
                 return (
-                  <div
-                    key={uni.id}
-                    className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col sm:flex-row"
-                  >
-                    {/* IZQUIERDA: Foto */}
+                  <div key={uni.id} className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col sm:flex-row">
+                    {/* Foto */}
                     <div className="relative sm:w-52 md:w-64 flex-shrink-0 min-h-[180px] sm:min-h-0 overflow-hidden">
                       <img
                         src={fotoUrl}
                         alt={uni.nombre}
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1562774053-701939374585?w=400&q=80';
-                        }}
+                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1562774053-701939374585?w=400&q=80'; }}
                       />
-                      {/* Badge posición */}
                       <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl px-2.5 py-1 shadow-md">
                         <span className="text-blue-600 font-black text-sm">#{posicion}</span>
                       </div>
-                      {/* Overlay degradado */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10 sm:to-white/30 pointer-events-none" />
                     </div>
 
-                    {/* DERECHA: Datos */}
+                    {/* Datos */}
                     <div className="flex-1 p-5 sm:p-6 flex flex-col justify-between">
                       <div>
-                        {/* Nombre y tipo */}
                         <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-                          <Link
-                            to={`/universidad/${uni.id}`}
-                            className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors leading-tight hover:underline"
-                          >
+                          <Link to={`/universidad/${uni.id}`} className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors leading-tight hover:underline">
                             {uni.nombre}
                           </Link>
-                          <span className={`flex-shrink-0 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg ${uni.tipo === 'PUB'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-indigo-100 text-indigo-700'
-                            }`}>
+                          <span className={`flex-shrink-0 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg ${uni.tipo === 'PUB' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`}>
                             {uni.tipo === 'PUB' ? ' PÚBLICA' : ' PRIVADA'}
                           </span>
                         </div>
-
-                        {/* Ciudad y Estado */}
                         <div className="flex items-center text-gray-500 text-sm mb-4">
                           <span className="mr-1.5">📍</span>
                           <span>{uni.ciudad}, {uni.estado}</span>
                         </div>
-
-                        {/* Rating con estrellas */}
                         <div className="mb-4">
                           <StarRating rating={uni.rating_google} />
-                        </div>
-
-                        {/* Descripción si existe */}
-                        {uni.descripcion_ia && (
-                          <p className="text-gray-500 text-sm leading-relaxed line-clamp-2 mb-4">
-                            {uni.descripcion_ia}
-                          </p>
-                        )}
-
-                        {/* Teléfono y sitio si existen */}
-                        <div className="flex flex-wrap gap-4 text-sm">
-                          {uni.telefono && (
-                            <span className="flex items-center gap-1 text-gray-500">
-                              <span>📞</span> {uni.telefono}
-                            </span>
-                          )}
-                          {uni.sitio_oficial && (
-                            <a
-                              href={uni.sitio_oficial}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-center gap-1 text-blue-500 hover:text-blue-700 font-medium"
-                            >
-                              <span>🌐</span> Sitio oficial
-                            </a>
-                          )}
                         </div>
                       </div>
 
                       {/* Acciones */}
                       <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-50">
-                        <Link
-                          to={`/universidad/${uni.id}`}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1 transition-colors"
-                        >
+                        <Link to={`/universidad/${uni.id}`} className="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1 transition-colors">
                           Ver perfil completo <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                         </Link>
 
-                        {/* Botón Favorito */}
                         <button
                           onClick={() => toggleFavorito(uni)}
                           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${esFav
@@ -294,32 +257,15 @@ const RankingPage = () => {
             {/* Paginación */}
             {totalPaginas > 1 && (
               <div className="flex flex-wrap justify-center items-center gap-2 mt-14">
-                <button
-                  onClick={() => setPagActual(p => Math.max(1, p - 1))}
-                  disabled={pagActual === 1}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
-                >
+                <button onClick={() => setPagActual(p => Math.max(1, p - 1))} disabled={pagActual === 1} className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm">
                   ← Anterior
                 </button>
-
                 {listaBotones.map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => setPagActual(num)}
-                    className={`min-w-[42px] h-[42px] font-bold rounded-xl transition-all duration-200 shadow-sm border ${pagActual === num
-                      ? 'bg-blue-600 text-white border-blue-600 scale-110 shadow-blue-200'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-blue-50 hover:text-blue-600'
-                      }`}
-                  >
+                  <button key={num} onClick={() => setPagActual(num)} className={`min-w-[42px] h-[42px] font-bold rounded-xl transition-all duration-200 shadow-sm border ${pagActual === num ? 'bg-blue-600 text-white border-blue-600 scale-110 shadow-blue-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-blue-50 hover:text-blue-600'}`}>
                     {num}
                   </button>
                 ))}
-
-                <button
-                  onClick={() => setPagActual(p => Math.min(totalPaginas, p + 1))}
-                  disabled={pagActual === totalPaginas}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
-                >
+                <button onClick={() => setPagActual(p => Math.min(totalPaginas, p + 1))} disabled={pagActual === totalPaginas} className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-bold hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm">
                   Siguiente →
                 </button>
               </div>

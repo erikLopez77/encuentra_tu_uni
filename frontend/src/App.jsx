@@ -22,6 +22,7 @@ import MisFavPage from './pages/MisFavPage';
 axios.defaults.withCredentials = true;
 axios.defaults.xsrfCookieName = 'csrftoken'; // Nombre de la cookie que manda Django
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'; // Nombre del header que espera Django
+axios.defaults.baseURL = 'http://localhost:8000';
 const MainLayout = () => (
   <div className="min-h-screen bg-gray-50 flex flex-col">
     <Navbar />

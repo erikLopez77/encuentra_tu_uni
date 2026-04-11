@@ -33,11 +33,18 @@ CORS_ALLOW_HEADERS = [
 ]
 # Para que las sesiones se guarden en Redis
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-# Asegúrate de que las cookies sean accesibles por Axios
-CSRF_COOKIE_HTTPONLY = False  # Permite que JS lea la cookie CSRF
+
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
+# Asegurar que no se marquen como "Solo HTTPS" ya que estás en desarrollo (HTTP)
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+# Asegúrate de que las cookies sean accesibles por Axios
+CSRF_COOKIE_HTTPONLY = False  # Permite que JS lea la cookie CSRF
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -53,7 +60,7 @@ SECRET_KEY = 'django-insecure-r8n4s81+k3mz5*(x!6&l)bu(my0wf0p9(0w(b=j9-(y7op7wgn
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '10.0.2.2'] # El último es para emuladores
 
 
 # Application definition

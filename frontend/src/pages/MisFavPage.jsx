@@ -9,6 +9,7 @@ const getCsrf = () => {
 };
 
 const API = 'http://localhost:8000/api';
+const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
 const MisFavPage = () => {
     const [unis, setUnis] = useState([]);       // array de universidades completas
@@ -50,15 +51,34 @@ const MisFavPage = () => {
     const quitarFavorito = async (uni) => {
         setQuitando(uni.id);
         const nuevosIds = ids.filter((id) => id !== uni.id);
-        try {
-            // Axios ya sabe que debe enviar las credenciales y el CSRF Token solo
-            await axios.put(`${API}/perfil/`, { favoritos: nuevosIds });
 
+        try {
+            // Obtenemos el token de la cookie
+            const csrfToken = getCsrf();
+
+            await axios.put(
+                `${API}/perfil/`,
+                { favoritos: nuevosIds },
+                {
+                    withCredentials: true, // Crucial para la sesión
+                    headers: {
+                        'X-CSRFToken': csrfToken // Crucial para la seguridad de Django
+                    }
+                }
+            );
+
+            // Actualizamos los estados locales solo si la API respondió 200 OK
             setUnis((prev) => prev.filter((u) => u.id !== uni.id));
             setIds(nuevosIds);
             showToast(`"${uni.nombre}" eliminado`);
         } catch (err) {
-            console.error('Error:', err);
+            console.error('Error al eliminar favorito:', err);
+            // Si el error es 403, probablemente el token CSRF falló o expiró
+            if (err.response?.status === 403) {
+                alert("Error de permisos (CSRF). Intenta recargar la página.");
+            } else {
+                showToast("No se pudo eliminar de favoritos");
+            }
         } finally {
             setQuitando(null);
         }
@@ -137,7 +157,7 @@ const MisFavPage = () => {
                     <div className="flex flex-col gap-5">
                         {unis.map((uni, index) => {
                             const fotoUrl = uni.foto_reference
-                                ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${uni.foto_reference}&key=TU_API_KEY`
+                                ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${uni.foto_reference}&key=${API_KEY}`
                                 : 'https://images.unsplash.com/photo-1562774053-701939374585?w=400&q=80';
 
                             return (
@@ -171,8 +191,8 @@ const MisFavPage = () => {
                                                     {uni.nombre}
                                                 </Link>
                                                 <span className={`flex-shrink-0 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg ${uni.tipo === 'PUB'
-                                                        ? 'bg-emerald-100 text-emerald-700'
-                                                        : 'bg-indigo-100 text-indigo-700'
+                                                    ? 'bg-emerald-100 text-emerald-700'
+                                                    : 'bg-indigo-100 text-indigo-700'
                                                     }`}>
                                                     {uni.tipo === 'PUB' ? '🏛 PÚBLICA' : '🎓 PRIVADA'}
                                                 </span>

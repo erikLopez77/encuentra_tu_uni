@@ -55,13 +55,13 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
 
         if 'first_name' in data:
             nombre = data.get('first_name').strip()
-            if not nombre.isalpha(): # Solo letras
+            if not nombre.replace(" ", "").isalpha(): # Solo letras
                 return Response({"error": "El nombre solo puede contener letras."}, status=400)
             user.first_name = nombre
             user.save()
         if 'last_name' in data:
             last_name=data.get('last_name').strip()
-            if not last_name.isalpha(): # Solo letras
+            if not last_name.replace(" ", "").isalpha(): # Solo letras
                 return Response({"error": "Los apellidos solo pueden contener letras."}, status=400)
             user.last_name = last_name
             user.save()

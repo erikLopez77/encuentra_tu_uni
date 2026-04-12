@@ -17,6 +17,7 @@ import RetriveAccount from './pages/RetriveAccount';
 import UserDashboard from './pages/UserDashboard';
 import RankingPage from './pages/RankingPage';
 import MisFavPage from './pages/MisFavPage';
+import PerfilPage from './pages/PerfilPage';
 // --- CONFIGURACIÓN GLOBAL DE AXIOS ---
 // Esto resuelve el problema de la sesión y el CSRF para TODA la app
 axios.defaults.withCredentials = true;
@@ -60,7 +61,7 @@ function App() {
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/favoritos" element={<MisFavPage />} />
           <Route path="/ranking" element={<RankingPage />} />
-          <Route path="/perfil" element={<UserDashboard />} />
+          <Route path="/perfil" element={<PerfilPage />} />
         </Route>
       </Routes>
     </Router>

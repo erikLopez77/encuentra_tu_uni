@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
 from django.core.cache import cache
+from django.contrib.auth import update_session_auth_hash
 from .models import Universidad, Perfil
 from .serializers import UniversidadSerializer, PerfilSerializer, RegisterSerializer
 from django.contrib.auth.models import User
@@ -48,41 +49,53 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
         return perfil
     
     def update(self, request, *args, **kwargs):
-        # Permite actualizar solo los campos favoritos
         perfil = self.get_object()
-        user=self.request.user
-        data=request.data
+        user = self.request.user
+        data = request.data
+        user_changed = False # Bandera para guardar una sola vez
 
         if 'first_name' in data:
             nombre = data.get('first_name').strip()
-            if not nombre.replace(" ", "").isalpha(): # Solo letras
-                return Response({"error": "El nombre solo puede contener letras."}, status=400)
+            if not nombre.replace(" ", "").isalpha():
+                return Response({"error": "El nombre solo puede contener letras."}, status=status.HTTP_400_BAD_REQUEST)
             user.first_name = nombre
-            user.save()
+            user_changed = True
+
         if 'last_name' in data:
-            last_name=data.get('last_name').strip()
-            if not last_name.replace(" ", "").isalpha(): # Solo letras
-                return Response({"error": "Los apellidos solo pueden contener letras."}, status=400)
-            user.last_name = last_name
-            user.save()
+            apellido = data.get('last_name').strip()
+            if not apellido.replace(" ", "").isalpha():
+                return Response({"error": "Los apellidos solo pueden contener letras."}, status=status.HTTP_400_BAD_REQUEST)
+            user.last_name = apellido
+            user_changed = True
+
         if 'password' in data:
             password = data.get('password')
             if len(password) < 8 or password.isdigit():
                 return Response({
                     "error": "La contraseña debe tener al menos 8 caracteres y no puede ser solo números."
-                }, status=400)
+                }, status=status.HTTP_400_BAD_REQUEST)
             user.set_password(password)
+            user_changed = True
+        
+        # Guardamos los cambios del usuario si hubo alguno
+        if user_changed:
             user.save()
-        favoritos_ids =data.get('favoritos')
+            # Solo si se cambió la contraseña, actualizamos el hash de sesión
+            if 'password' in data:
+                update_session_auth_hash(request, user)
+
+        # Lógica de favoritos
+        favoritos_ids = data.get('favoritos')
         if favoritos_ids is not None:
             if not isinstance(favoritos_ids, list):
-                return Response({"error": "Favoritos debe ser una lista de IDs."}, status=400)
+                return Response({"error": "Favoritos debe ser una lista de IDs."}, status=status.HTTP_400_BAD_REQUEST)
             perfil.favoritos.set(favoritos_ids)
-        #al actualizar, borramos el caché para que la proxima, se recargue 
-        cache.delete(f"perfil_user_{user.id}") 
 
+        # Limpiar caché y guardar perfil
+        cache.delete(f"perfil_user_{user.id}") 
         perfil.save()
-        serializer=self.get_serializer(perfil)
+        
+        serializer = self.get_serializer(perfil)
         return Response(serializer.data)
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()

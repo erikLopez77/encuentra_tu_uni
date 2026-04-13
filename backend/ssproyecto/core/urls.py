@@ -8,5 +8,6 @@ urlpatterns = [
     path('universidades/<int:pk>/', views.UniversidadDetailView.as_view(), name='universidad-detail'),
     path('perfil/',views.PerfilCreateDetailView.as_view(),name='perfil'),
     path('register/', views.RegisterView.as_view(), name='register'),
+    path('retrieve/',views.PasswordResetUpdateView.as_view(), name='retrieve_password'),
     path('soap_login/', soap_login_view, name='soap_login'),
 ]

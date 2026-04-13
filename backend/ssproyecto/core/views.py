@@ -104,6 +104,56 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def post(self, request, *args, **kwargs):
+        email_nuevo = request.data.get('email')
+        if User.objects.filter(email=email_nuevo).exists():
+            return Response({"error": "Este correo ya está registrado."}, status=status.HTTP_400_BAD_REQUEST)
         # Este método ya viene integrado en CreateAPIView, 
         # pero DRF se encarga de ejecutar .is_valid() automáticamente.
         return super().post(request, *args, **kwargs)
+# ... (tus otros imports y vistas)
+
+class PasswordResetUpdateView(generics.GenericAPIView):
+    # Esto permite que cualquier persona (incluso sin loguearse) intente recuperar su cuenta
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        email = data.get('email')
+        password = data.get('password')
+
+        # 1. Validaciones de campos
+        if not email or not password:
+            return Response(
+                {"error": "El email y la nueva contraseña son obligatorios."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Buscar al usuario por email
+        try:
+            # Importante: Asegúrate de que no haya usuarios con emails duplicados en tu DB
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "No existe un usuario con este correo electrónico."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except User.MultipleObjectsReturned:
+            return Response(
+                {"error": "Error interno: existen múltiples usuarios con este email."}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # 3. Validaciones de seguridad de la contraseña
+        if len(password) < 8 or password.isdigit():
+            return Response({
+                "error": "La contraseña debe tener al menos 8 caracteres y no puede ser solo números."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Cambiar contraseña y guardar
+        user.set_password(password)
+        user.save()
+
+        return Response(
+            {"message": "Contraseña restablecida con éxito. Ya puedes iniciar sesión."}, 
+            status=status.HTTP_200_OK
+        )

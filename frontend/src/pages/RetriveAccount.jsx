@@ -1,15 +1,70 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 // Si usas una imagen local, impórtala así. Si no, usa el enlace de Unsplash.
 // import bgImage from '../assets/images/biblioteca_moderna.jpg'; 
-
+const getCsrf = () => {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '';
+};
 const RetriveAccount = () => {
-
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [repetir_password, setRepetirPassword] = useState('');
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
     // Imagen de fondo inspiradora (una biblioteca moderna y brillante)
     const backgroundUrl = "https://images.unsplash.com/photo-1568667256549-094345857637?q=80&w=2000&auto=format&fit=crop";
     useEffect(() => {
         document.title = "Recuperar cuenta | EncuentraTuFuturo";
     }, []);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+
+        // 1. Validaciones locales antes de activar loading
+        if (!password || !email) {
+            setError("Por favor, llena todos los campos obligatorios.");
+            return;
+        }
+        if (password !== repetir_password) {
+            setError("Las contraseñas no coinciden");
+            return;
+        }
+        if (password.length < 8) {
+            setError("La contraseña debe tener al menos 8 caracteres.");
+            return;
+        }
+
+        setLoading(true); // Solo activamos loading si pasó las pruebas locales
+
+        try {
+            const res = await axios.post("http://localhost:8000/api/retrieve/", {
+                email: email,
+                password: password,
+            }, {
+                headers: { 'X-CSRFToken': getCsrf() }
+            });
+
+            setIsSuccess(true); // exito
+            setError("¡Contraseña actualizada con éxito! Redirigiendo al login...");
+
+            setEmail('');
+            setPassword('');
+            setRepetirPassword('');
+
+            setTimeout(() => window.location.href = "/login", 3000);
+
+        } catch (err) {
+            setIsSuccess(false); // <--- Marcamos que NO es éxito (es error)
+            const mensajeError = err.response?.data?.error || "Error al conectar con el servidor";
+            setError(mensajeError);
+        } finally {
+            setLoading(false);
+        }
+    };
     return (
         <div
             className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
@@ -30,17 +85,26 @@ const RetriveAccount = () => {
                         Tu camino profesional empieza aquí
                     </p>
                 </div>
-
-                <form className="space-y-6">
+                {error && (
+                    <div className={`mb-6 p-4 border-l-4 rounded-r-xl transition-all duration-300 ${isSuccess
+                        ? "bg-blue-50 border-blue-500 text-blue-800"  // Estilo para Éxito
+                        : "bg-red-50 border-red-500 text-red-800"     // Estilo para Error
+                        }`}>
+                        <p className="text-sm font-semibold">{error}</p>
+                    </div>
+                )}
+                <form className="space-y-6" onSubmit={handleSubmit} >
                     {/* Campo de Email */}
                     <div>
                         <label className="block text-sm font-bold text-slate-800 mb-2 ml-1">
                             Correo electrónico
                         </label>
                         <input
-                            autocomplete="off"
+                            autoComplete='off'
                             type="email"
                             name="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             placeholder="ejemplo@universidad.edu.mx"
                             className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all duration-200 shadow-inner"
                         />
@@ -53,9 +117,11 @@ const RetriveAccount = () => {
 
                         </div>
                         <input
-                            autocomplete="off"
+                            autoComplete='off'
                             type="password"
                             name="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
                             className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all duration-200 shadow-inner"
                         />
@@ -66,9 +132,11 @@ const RetriveAccount = () => {
 
                         </div>
                         <input
-                            autocomplete="off"
+                            autoComplete='off'
                             type="password"
                             name="repetir_password"
+                            value={repetir_password}
+                            onChange={(e) => setRepetirPassword(e.target.value)}
                             placeholder="••••••••"
                             className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 transition-all duration-200 shadow-inner"
                         />

@@ -1,10 +1,11 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.views import APIView
 from django.core.cache import cache
-from django.contrib.auth import update_session_auth_hash
-from .models import Universidad, Perfil
-from .serializers import UniversidadSerializer, PerfilSerializer, RegisterSerializer
+from django.contrib.auth import update_session_auth_hash, logout
+from .models import Universidad, Perfil, Comentario
+from .serializers import UniversidadSerializer, PerfilSerializer, RegisterSerializer, ComentarioSerializer
 from django.contrib.auth.models import User
 
 class UniversidadListView(generics.ListAPIView):
@@ -157,3 +158,49 @@ class PasswordResetUpdateView(generics.GenericAPIView):
             {"message": "Contraseña restablecida con éxito. Ya puedes iniciar sesión."}, 
             status=status.HTTP_200_OK
         )
+
+class ComentarioListCreateView(generics.ListCreateAPIView):
+    serializer_class = ComentarioSerializer
+    authentication_classes = [SessionAuthentication]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        universidad_id = self.kwargs['universidad_id']
+        return Comentario.objects.filter(universidad_id=universidad_id).select_related('usuario')
+
+    def perform_create(self, serializer):
+        universidad_id = self.kwargs['universidad_id']
+        try:
+            universidad = Universidad.objects.get(pk=universidad_id)
+        except Universidad.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Universidad no encontrada.")
+        # Si el usuario ya comentó, actualiza en lugar de duplicar
+        comentario_existente = Comentario.objects.filter(
+            universidad=universidad, 
+            usuario=self.request.user
+        ).first()
+        if comentario_existente:
+            comentario_existente.texto = serializer.validated_data['texto']
+            comentario_existente.calificacion = serializer.validated_data.get('calificacion', comentario_existente.calificacion)
+            comentario_existente.save()
+        else:
+            serializer.save(usuario=self.request.user, universidad=universidad)
+
+class LogoutView(APIView):
+    # Sin SessionAuthentication: así evitamos el requisito CSRF en el POST
+    # Es seguro porque el peor escenario de un CSRF-logout es que te deslogeen
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        # Eliminar caché del perfil antes de cerrar sesión
+        if request.user.is_authenticated:
+            cache.delete(f"perfil_user_{request.user.id}")
+        # Destruye la sesión en el servidor y borra la cookie sessionid
+        logout(request)
+        return Response({"message": "Sesión cerrada correctamente."}, status=status.HTTP_200_OK)

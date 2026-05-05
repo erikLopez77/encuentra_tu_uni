@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 
 # Namespaces del envelope SOAP 1.1
 NS_SOAP_ENV = 'http://schemas.xmlsoap.org/soap/envelope/'
-NS_TNS = 'ssproyecto.auth.soap'
+NS_TNS = 'ssproyecto.auth.soap'  # type: ignore[name-defined]
 
 
 def _soap_response(result: str) -> HttpResponse:
@@ -69,6 +69,7 @@ def soap_login_view(request):
         <part name="result" type="xsd:string"/>
     </message>
     <portType name="LoginServicePortType">
+    <!-- agregar la funcion authenticate_user -->
         <operation name="authenticate_user">
             <input message="tns:authenticate_userRequest"/>
             <output message="tns:authenticate_userResponse"/>

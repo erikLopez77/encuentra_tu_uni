@@ -17,6 +17,7 @@ class Universidad(models.Model):
     foto_reference=models.CharField(max_length=500, blank=True, null=True) # URL o referencia a la foto en Google Places
     # Campo para guardar el ID de Google y evitar duplicados al importar
     google_place_id = models.CharField(max_length=255, unique=True, null=True)
+    comentario=models.ManyToManyField('Perfil', blank=True)
     class Meta:
         verbose_name_plural = "Universidades"
         # ordena por el ranking de estrellas
@@ -32,3 +33,18 @@ class Perfil(models.Model):
 
     def __str__(self):
         return f"{self.usuario.first_name} {self.usuario.last_name}"
+
+class Comentario(models.Model):
+    universidad = models.ForeignKey(Universidad, on_delete=models.CASCADE, related_name='comentarios')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comentarios')
+    texto = models.TextField()
+    calificacion = models.PositiveSmallIntegerField(default=5)  # 1 a 5 estrellas
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha']
+        # Limitar a un comentario por usuario por universidad
+        unique_together = [['universidad', 'usuario']]
+
+    def __str__(self):
+        return f"Comentario de {self.usuario.first_name} en {self.universidad.nombre}"

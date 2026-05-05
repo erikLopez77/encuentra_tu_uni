@@ -1,7 +1,23 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const UserNavbar = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      // Llama al backend para destruir la sesión en el servidor
+      await axios.post('/api/logout/');
+    } catch (error) {
+      // Aunque falle, igual redirigimos (por si la sesión ya expiró)
+      console.error('Error al cerrar sesión:', error);
+    } finally {
+      // Redirigir al home público siempre
+      navigate('/');
+    }
+  };
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,10 +44,14 @@ const UserNavbar = () => {
             <Link to="/perfil" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
               Mi perfil
             </Link>
-            
-            <Link to="/" className="text-sm font-semibold bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg transition-colors">
+
+            {/* Botón real de logout — ya no es un Link */}
+            <button
+              onClick={handleLogout}
+              className="text-sm font-semibold bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg transition-colors cursor-pointer border-none"
+            >
               Cerrar Sesión
-            </Link>
+            </button>
           </div>
         </div>
       </div>

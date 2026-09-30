@@ -59,7 +59,7 @@ const RankingPage = () => {
     const fetchUnis = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8000/api/universidades/?page=${pagActual}`, {
+        const response = await axios.get(`http://localhost:8001/api/v1/universidades/?page=${pagActual}`, {
           params: { estado, tipo: tipo || undefined }
         });
         setUnis(response.data.results);

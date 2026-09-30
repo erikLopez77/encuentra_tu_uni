@@ -1,6 +1,7 @@
 
 # Entornos virtuales (el más importante)
 backend/djenv/
+**/djenv/
 *.pyc
 ssproyecto/static/admin/
 .env

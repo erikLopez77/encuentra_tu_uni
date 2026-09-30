@@ -370,7 +370,7 @@ const UniversidadDetalle = () => {
   useEffect(() => {
     const getDetalle = async () => {
       try {
-        const res = await axios.get(`/api/universidades/${id}/`);
+        const res = await axios.get(`http://localhost:8001/api/v1/universidades/${id}/`);
 
         let texto = res.data.descripcion_ia || '';
         texto = texto.replace(/\\n/g, '\n');

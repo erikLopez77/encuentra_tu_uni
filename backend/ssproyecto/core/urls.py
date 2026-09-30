@@ -4,8 +4,6 @@ from . import views
 from .soap_services import soap_login_view
 
 urlpatterns = [
-    path('universidades/', views.UniversidadListView.as_view(), name='universidad-list'),
-    path('universidades/<int:pk>/', views.UniversidadDetailView.as_view(), name='universidad-detail'),
     path('universidades/<int:universidad_id>/comentarios/', views.ComentarioListCreateView.as_view(), name='comentario-list-create'),
     path('perfil/',views.PerfilCreateDetailView.as_view(),name='perfil'),
     path('register/', views.RegisterView.as_view(), name='register'),

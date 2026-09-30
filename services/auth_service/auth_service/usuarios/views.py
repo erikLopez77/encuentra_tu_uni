@@ -1,31 +1,14 @@
+
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.views import APIView
 from django.core.cache import cache
 from django.contrib.auth import update_session_auth_hash, logout
-from .models import Universidad, Perfil, Comentario
-from .serializers import UniversidadSerializer, PerfilSerializer, RegisterSerializer, ComentarioSerializer
+from .models import Universidad, Perfil
+from .serializers import  PerfilSerializer, RegisterSerializer
 from django.contrib.auth.models import User
-
-class UniversidadListView(generics.ListAPIView):
-    serializer_class = UniversidadSerializer
-    permission_classes = [permissions.AllowAny]
-    def get_queryset(self):
-        queryset = Universidad.objects.all()  # Ordenadas por rating via Meta
-        estado = self.request.query_params.get('estado')
-        tipo = self.request.query_params.get('tipo')
-        if estado:
-            queryset = queryset.filter(ciudad__icontains=estado)
-        if tipo and tipo in ('PUB', 'PRI'):
-            queryset = queryset.filter(tipo=tipo)
-        return queryset
-
-class UniversidadDetailView(generics.RetrieveAPIView):
-    queryset = Universidad.objects.all()
-    serializer_class = UniversidadSerializer
-    permission_classes = [permissions.AllowAny]
-
+# Create your views here.
 class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PerfilSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -84,13 +67,6 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
             # Solo si se cambió la contraseña, actualizamos el hash de sesión
             if 'password' in data:
                 update_session_auth_hash(request, user)
-
-        # Lógica de favoritos
-        favoritos_ids = data.get('favoritos')
-        if favoritos_ids is not None:
-            if not isinstance(favoritos_ids, list):
-                return Response({"error": "Favoritos debe ser una lista de IDs."}, status=status.HTTP_400_BAD_REQUEST)
-            perfil.favoritos.set(favoritos_ids)
 
         # Limpiar caché y guardar perfil
         cache.delete(f"perfil_user_{user.id}")
@@ -159,7 +135,6 @@ class PasswordResetUpdateView(generics.GenericAPIView):
             status=status.HTTP_200_OK
         )
 
-
 class LogoutView(APIView):
     # Sin SessionAuthentication: así evitamos el requisito CSRF en el POST
     # Es seguro porque el peor escenario de un CSRF-logout es que te deslogeen
@@ -173,35 +148,3 @@ class LogoutView(APIView):
         # Destruye la sesión en el servidor y borra la cookie sessionid
         logout(request)
         return Response({"message": "Sesión cerrada correctamente."}, status=status.HTTP_200_OK)
-
-class ComentarioListCreateView(generics.ListCreateAPIView):
-    serializer_class = ComentarioSerializer
-    authentication_classes = [SessionAuthentication]
-
-    def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
-
-    def get_queryset(self):
-        universidad_id = self.kwargs['universidad_id']
-        return Comentario.objects.filter(universidad_id=universidad_id).select_related('usuario')
-
-    def perform_create(self, serializer):
-        universidad_id = self.kwargs['universidad_id']
-        try:
-            universidad = Universidad.objects.get(pk=universidad_id)
-        except Universidad.DoesNotExist:
-            from rest_framework.exceptions import NotFound
-            raise NotFound("Universidad no encontrada.")
-        # Si el usuario ya comentó, actualiza en lugar de duplicar
-        comentario_existente = Comentario.objects.filter(
-            universidad=universidad,
-            usuario=self.request.user
-        ).first()
-        if comentario_existente:
-            comentario_existente.texto = serializer.validated_data['texto']
-            comentario_existente.calificacion = serializer.validated_data.get('calificacion', comentario_existente.calificacion)
-            comentario_existente.save()
-        else:
-            serializer.save(usuario=self.request.user, universidad=universidad)

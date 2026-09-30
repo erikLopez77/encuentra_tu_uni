@@ -1,0 +1,75 @@
+[
+{
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$eSAaIGD4e2cDNfKj9AyUgz$qhWn/n/BKPPFGHg3qdkNVUssh5plFv7wejC4KT+VZy4=",
+        "last_login": "2026-04-29T16:51:15.817Z",
+        "is_superuser": false,
+        "username": "espinozalopezerik@gmail.com",
+        "first_name": "Erik",
+        "last_name": "Lopez",
+        "email": "espinozalopezerik@gmail.com",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-04-09T02:15:20.421Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 2,
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$9w6UZMMtsAXFGTAxQgl4OL$cfo7dvcmON5g0Kf2TlwM0KQNMDFbKuaWbX0f9IO8J9M=",
+        "last_login": null,
+        "is_superuser": false,
+        "username": "ejem1@gmail.com",
+        "first_name": "Juan",
+        "last_name": "Mendez",
+        "email": "ejem1@gmail.com",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-04-09T02:25:43.221Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 4,
+    "fields": {
+        "password": "pbkdf2_sha256$1200000$m1VaiKAmJSf1KMZMSmwNEj$FRd+HSTJ5Dk/ORRRsfyycvBJDvvRXikxOx/l+yStbIM=",
+        "last_login": "2026-04-22T17:47:29.512Z",
+        "is_superuser": false,
+        "username": "juan@gmail.com",
+        "first_name": "Juan",
+        "last_name": "Valdivia",
+        "email": "juan@gmail.com",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2026-04-22T17:47:09.529Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "core.perfil",
+    "pk": 1,
+    "fields": {
+        "usuario": 1,
+        "favoritos": [
+            174,
+            33
+        ]
+    }
+},
+{
+    "model": "core.perfil",
+    "pk": 2,
+    "fields": {
+        "usuario": 4,
+        "favoritos": []
+    }
+}
+]

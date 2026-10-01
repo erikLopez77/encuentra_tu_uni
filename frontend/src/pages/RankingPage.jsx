@@ -42,7 +42,7 @@ const RankingPage = () => {
   useEffect(() => {
     const fetchFavoritosUser = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/api/perfil/');
+        const res = await axios.get('http://localhost:8002/api/v1/perfil/');
         // Asumiendo que res.data.favoritos es una lista de IDs: [1, 5, 10]
         setFavoritos(new Set(res.data.favoritos));
       } catch (err) {
@@ -94,7 +94,7 @@ const RankingPage = () => {
 
     try {
       // Petición al backend para actualizar el perfil
-      await axios.put('/api/perfil/', {
+      await axios.put('http:localhost:8002/api/v1/perfil/', {
         favoritos: nuevosFavoritosIds
       }, {
         // Forzamos el encabezado manualmente si es necesario

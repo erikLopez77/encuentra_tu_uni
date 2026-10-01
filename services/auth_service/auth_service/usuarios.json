@@ -54,22 +54,17 @@
     }
 },
 {
-    "model": "core.perfil",
+    "model": "usuarios.perfil",
     "pk": 1,
     "fields": {
-        "usuario": 1,
-        "favoritos": [
-            174,
-            33
-        ]
+        "usuario": 1
     }
 },
 {
-    "model": "core.perfil",
+    "model": "usuarios.perfil",
     "pk": 2,
     "fields": {
-        "usuario": 4,
-        "favoritos": []
+        "usuario": 4
     }
 }
 ]

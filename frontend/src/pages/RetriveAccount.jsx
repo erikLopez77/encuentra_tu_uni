@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 // Si usas una imagen local, impórtala así. Si no, usa el enlace de Unsplash.
-// import bgImage from '../assets/images/biblioteca_moderna.jpg'; 
+// import bgImage from '../assets/images/biblioteca_moderna.jpg';
 const getCsrf = () => {
     const match = document.cookie.match(/csrftoken=([^;]+)/);
     return match ? match[1] : '';
@@ -41,7 +41,7 @@ const RetriveAccount = () => {
         setLoading(true); // Solo activamos loading si pasó las pruebas locales
 
         try {
-            const res = await axios.post("http://localhost:8000/api/retrieve/", {
+            const res = await axios.post("http://localhost:8002/api/v1/retrieve/", {
                 email: email,
                 password: password,
             }, {

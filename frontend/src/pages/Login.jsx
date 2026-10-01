@@ -3,19 +3,19 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Login = () => {
     const backgroundUrl = "https://images.unsplash.com/photo-1568667256549-094345857637?q=80&w=2000&auto=format&fit=crop";
-    
+
     const [showSuccess, setShowSuccess] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    
+
     const location = useLocation();
     const navigate = useNavigate();
 
     useEffect(() => {
         document.title = "Login | EncuentraTuFuturo";
-        
+
         const params = new URLSearchParams(location.search);
         if (params.get('registered') === 'true') {
             setShowSuccess(true);
@@ -38,17 +38,17 @@ const Login = () => {
 </soap11env:Envelope>`;
 
         try {
-            const response = await fetch('http://localhost:8000/api/soap_login/', {
+            const response = await fetch('http://localhost:8002/api/v1/soap_login/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'text/xml',
                 },
-                credentials: 'include', 
+                credentials: 'include',
                 body: soapRequest
             });
 
             const textResponse = await response.text();
-            
+
             if (textResponse.includes("SUCCESS")) {
                 navigate('/dashboard');
             } else if (textResponse.includes("INVALID_CREDENTIALS")) {
@@ -70,14 +70,14 @@ const Login = () => {
     };
 
     return (
-        <div 
+        <div
             className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center bg-no-repeat relative"
             style={{ backgroundImage: `url(${backgroundUrl})` }}
         >
             <div className="absolute min-h-screen inset-0 bg-slate-900/40 backdrop-blur-sm"></div>
 
             <div className="max-w-md w-full bg-white/95 p-10 rounded-[2.5rem] shadow-2xl backdrop-blur-md border border-white/20 relative z-10 transition-all duration-300">
-                
+
                 {showSuccess && (
                     <div className="mb-8 p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 rounded-r-xl relative animate-bounce-subtle">
                         <div className="flex items-center gap-3">
@@ -91,7 +91,7 @@ const Login = () => {
                                 <p className="text-xs font-semibold opacity-90">Tu cuenta ha sido creada. Ya puedes iniciar sesión.</p>
                             </div>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setShowSuccess(false)}
                             className="absolute top-2 right-2 text-emerald-400 hover:text-emerald-600 transition-colors"
                         >
@@ -122,10 +122,10 @@ const Login = () => {
                         <label className="block text-sm font-bold text-slate-800 mb-2 ml-1">
                             Correo electrónico
                         </label>
-                        <input 
+                        <input
                             autoComplete="off"
-                            type="email" 
-                            name="email" 
+                            type="email"
+                            name="email"
                             placeholder="ejemplo@universidad.edu.mx"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -141,10 +141,10 @@ const Login = () => {
                                 ¿Olvidaste tu contraseña?
                             </Link>
                         </div>
-                        <input 
+                        <input
                             autoComplete="off"
-                            type="password" 
-                            name="password" 
+                            type="password"
+                            name="password"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -153,7 +153,7 @@ const Login = () => {
                         />
                     </div>
 
-                    <button 
+                    <button
                         type="submit"
                         disabled={loading}
                         className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200/50 transition-all active:scale-[0.98] mt-6 text-lg ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}

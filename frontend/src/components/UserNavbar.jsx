@@ -8,7 +8,7 @@ const UserNavbar = () => {
   const handleLogout = async () => {
     try {
       // Llama al backend para destruir la sesión en el servidor
-      await axios.post('/api/logout/');
+      await axios.post('http:localhost:8002/api/v1/logout/');
     } catch (error) {
       // Aunque falle, igual redirigimos (por si la sesión ya expiró)
       console.error('Error al cerrar sesión:', error);

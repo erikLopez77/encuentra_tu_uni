@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:8000/api';
+const API = 'http://localhost:8002/api/v1';
 // Lee el token CSRF de la cookie que Django pone al hacer GET /api/perfil/
 const getCsrf = () => {
     const match = document.cookie.match(/csrftoken=([^;]+)/);

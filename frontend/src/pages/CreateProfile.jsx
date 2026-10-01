@@ -52,7 +52,7 @@ const CreateProfile = () => {
         // 4. Petición al Backend
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:8000/api/register/', { // Ajusta tu URL
+            const response = await fetch('http://localhost:8002/api/v1/register/', { // Ajusta tu URL
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -86,7 +86,7 @@ const CreateProfile = () => {
             <div className="absolute min-h-screen inset-0 bg-slate-900/40 backdrop-blur-sm"></div>
 
             <div className="max-w-md w-full bg-white/95 p-10 rounded-[2.5rem] shadow-2xl backdrop-blur-md border border-white/20 relative z-10">
-                
+
                 <div className="text-center mb-8">
                     <h2 className="text-4xl font-black text-blue-600 tracking-tighter">EncuentraTuFuturo</h2>
                     <p className="text-slate-600 mt-2 font-semibold">Crea tu perfil académico</p>

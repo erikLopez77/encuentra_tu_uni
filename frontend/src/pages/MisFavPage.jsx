@@ -8,7 +8,7 @@ const getCsrf = () => {
     return match ? match[1] : '';
 };
 
-const API = 'http://localhost:8000/api';
+const API = 'http://localhost:8002/api/v1';
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
 const MisFavPage = () => {

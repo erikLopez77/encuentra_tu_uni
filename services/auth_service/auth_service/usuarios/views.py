@@ -5,7 +5,7 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.views import APIView
 from django.core.cache import cache
 from django.contrib.auth import update_session_auth_hash, logout
-from .models import Universidad, Perfil
+from .models import  Perfil
 from .serializers import  PerfilSerializer, RegisterSerializer
 from django.contrib.auth.models import User
 # Create your views here.

@@ -11,17 +11,27 @@ from django.contrib.auth.models import User
 # Create your views here.
 class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PerfilSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # Permite que cualquier usuario autenticado acceda
     authentication_classes = [SessionAuthentication] # Asegura que use sesiones
 
+    def get(self, request, *args, **kwargs):
+        #  Si no hay sesión activa, respondemos 200 OK con un objeto indicando que no hay sesión
+        if not request.user.is_authenticated:
+            return Response({"isAuthenticated": False}, status=status.HTTP_200_OK)
+        # Si sí está logueado, dejamos que devuelva su perfil normalmente(usamos get_object() )
+        return super().get(request, *args, **kwargs)
+
+    #busca, crea, extrae o caahea al usuario
     def get_object(self):
+        # Protección extra por si se invoca get_object sin autenticación
+        if not self.request.user.is_authenticated:
+            return None
+
         # Si llegamos aquí, IsAuthenticated ya pasó, así que user es válido
         user = self.request.user
         cache_key = f"perfil_user_{user.id}"
-
         # Intentamos obtener de caché
         perfil = cache.get(cache_key)
-
         if not perfil:
             # Si no hay caché, obtenemos o creamos
             perfil, created = Perfil.objects.get_or_create(usuario=user)
@@ -29,10 +39,12 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
                 cache.set(cache_key, perfil, timeout=3600)
             except Exception as e:
                 print(f"Redis no disponible: {e}")
-
         return perfil
 
     def update(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response({"error": "No autorizado"}, status=status.HTTP_401_UNAUTHORIZED)
+        
         perfil = self.get_object()
         user = self.request.user
         data = request.data

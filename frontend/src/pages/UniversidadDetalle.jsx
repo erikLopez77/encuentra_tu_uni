@@ -143,7 +143,7 @@ const PanelComentarios = ({ universidadId }) => {
   useEffect(() => {
     const verificarSesion = async () => {
       try {
-        const res = await axios.get('http:localhost:8002/api/v1/perfil/');
+        const res = await axios.get('http://localhost:8002/api/v1/perfil/');
         setSesionActiva(true);
         setUsuarioId(res.data.id);
       } catch {

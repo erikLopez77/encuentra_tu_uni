@@ -4,7 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from . import views
 from .soap_services import soap_login_view
 
-
+#localhost:8002/api/v1
 urlpatterns=[
     path('perfil/',views.PerfilCreateDetailView.as_view(),name='perfil'),
     path('register/', views.RegisterView.as_view(), name='register'),

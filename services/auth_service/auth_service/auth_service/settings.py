@@ -33,6 +33,9 @@ CORS_ALLOW_HEADERS = [
 ]
 # Para que las sesiones se guarden en Redis
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# En settings.py del microservicio de Perfil/Usuarios (Puerto 8002)
+SESSION_COOKIE_NAME = 'sessionid_perfil'
+CSRF_COOKIE_NAME = 'csrftoken_perfil'
 
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'

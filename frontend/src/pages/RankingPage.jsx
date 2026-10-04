@@ -12,7 +12,11 @@ const TIPOS = [
   { value: 'PRI', label: 'Privada' },
 ];
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-
+// Función para leer el token CSRF de las cookies
+const getCsrf = () => {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '';
+};
 const StarRating = ({ rating }) => {
   const stars = Math.round(rating);
   return (
@@ -42,9 +46,12 @@ const RankingPage = () => {
   useEffect(() => {
     const fetchFavoritosUser = async () => {
       try {
-        const res = await axios.get('http://localhost:8002/api/v1/perfil/');
+        const res = await axios.get('http://localhost:8002/api/v1/perfil/', {
+          withCredentials: true
+        });
         // Asumiendo que res.data.favoritos es una lista de IDs: [1, 5, 10]
-        setFavoritos(new Set(res.data.favoritos));
+        //  QUEDA PENDIENTE
+        //setFavoritos(new Set(res.data.favoritos || []));
       } catch (err) {
         console.error("Error cargando favoritos iniciales:", err);
       }
@@ -93,15 +100,15 @@ const RankingPage = () => {
     }
 
     try {
-      // Petición al backend para actualizar el perfil
-      await axios.put('http:localhost:8002/api/v1/perfil/', {
+      // Petición al backend para actualizar el perfil, patch solo sustituye algunas cosas
+      //PUt llega a sustituir todo
+      await axios.patch('http://localhost:8002/api/v1/perfil/', {
         favoritos: nuevosFavoritosIds
       }, {
+        withCredentials: true, // Vital para enviar la sesión
         // Forzamos el encabezado manualmente si es necesario
         headers: {
-          'X-CSRFToken': document.cookie.split('; ')
-            .find(row => row.startsWith('csrftoken='))
-            ?.split('=')[1]
+          'X-CSRFToken': getCsrf()
         }
       });
 
@@ -144,6 +151,7 @@ const RankingPage = () => {
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               <div className="relative">
                 <select
+                  name="estado"
                   value={estado}
                   onChange={(e) => setEstado(e.target.value)}
                   className="appearance-none w-full sm:w-56 px-4 py-3 bg-white border-2 border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-gray-700 font-medium pr-10 cursor-pointer"
@@ -156,6 +164,7 @@ const RankingPage = () => {
 
               <div className="relative">
                 <select
+                  name="tipo"
                   value={tipo}
                   onChange={(e) => setTipo(e.target.value)}
                   className="appearance-none w-full sm:w-44 px-4 py-3 bg-white border-2 border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-gray-700 font-medium pr-10 cursor-pointer"

@@ -4,7 +4,7 @@ import axios from 'axios';
 const API = 'http://localhost:8002/api/v1';
 // Lee el token CSRF de la cookie que Django pone al hacer GET /api/perfil/
 const getCsrf = () => {
-    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    const match = document.cookie.match(/csrftoken_perfil=([^;]+)/);
     return match ? match[1] : '';
 };
 
@@ -29,11 +29,15 @@ const PerfilPage = () => {
     const fetchUserData = async () => {
         try {
             const res = await axios.get(`${API}/perfil/`, { withCredentials: true });
-            setUser({
-                nombre: res.data.nombre || '',
-                apellidos: res.data.apellidos || '',
-                email: res.data.email || '',
-            });
+            console.log("Datos del perfil obtenidos:", res.data);
+            // Verificamos que la respuesta traiga los datos esperados antes de actualizar el estado
+            if (res.data && res.data.email) {
+                setUser({
+                    nombre: res.data.nombre || '',
+                    apellidos: res.data.apellidos || '',
+                    email: res.data.email || '',
+                });
+            }
         } catch (err) {
             console.error("Error al cargar perfil", err);
         } finally {

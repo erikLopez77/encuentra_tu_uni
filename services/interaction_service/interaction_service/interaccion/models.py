@@ -10,9 +10,12 @@ class Comentario(models.Model):
 
     class Meta:
         ordering = ['-fecha']
+        unique_together = ('universidadId', 'usuarioId')
 
 class Favorito(models.Model):
     universidadId = models.IntegerField()
     usuarioId = models.IntegerField()
 
+    class Meta:
+        unique_together = ('universidadId', 'usuarioId')
 

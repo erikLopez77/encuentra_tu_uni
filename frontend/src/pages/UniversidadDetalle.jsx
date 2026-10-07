@@ -128,7 +128,7 @@ const PanelComentarios = ({ universidadId }) => {
 
   const cargarComentarios = useCallback(async () => {
     try {
-      const res = await axios.get(`/api/universidades/${universidadId}/comentarios/`);
+      const res = await axios.get(`http://localhost:8000/api/v1/universidades/${universidadId}/comentarios/`);
       // DRF puede devolver { results: [...] } si hay paginación, o un array directo
       const data = Array.isArray(res.data) ? res.data : (res.data.results ?? []);
       setComentarios(data);

@@ -1,17 +1,10 @@
 from django.urls import path
-from .views import (
-    FavoritoListCreateView,
-    FavoritoRetrieveDestroyView,
-    ComentarioListCreateView,
-    ComentarioRetrieveUpdateDestroyView
-)
+from .views import FavoritoView, ComentarioView
 
 urlpatterns = [
-    # Rutas para Favoritos
-    path('favoritos/', FavoritoListCreateView.as_view(), name='favorito-list-create'),
-    path('favoritos/<int:pk>/', FavoritoRetrieveDestroyView.as_view(), name='favorito-detail'),
+    # Gestión de Favoritos por verbos HTTP (GET, POST, DELETE) con soporte de caché
+    path('favoritos/', FavoritoView.as_view(), name='favoritos'),
 
-    # Rutas para Comentarios
-    path('universidades/<int:universidad_id>/comentarios/', ComentarioListCreateView.as_view(), name='comentario-list-create'),
-    path('universidades/<int:universidad_id>/comentarios/<int:comentario_id>/', ComentarioRetrieveUpdateDestroyView.as_view(), name='comentario-detail'),
+    # CRUD de Comentarios por verbos HTTP (GET, POST, PUT, PATCH, DELETE)
+    path('universidades/<int:universidad_id>/comentarios/', ComentarioView.as_view(), name='universidad-comentarios'),
 ]

@@ -183,6 +183,9 @@ CACHES = {
         "LOCATION": "redis://127.0.0.1:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "protocol": 2,  # Fuerza el uso del protocolo RESP2 compatible con tu contenedor
+            },
         }
     }
 }

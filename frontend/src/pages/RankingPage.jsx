@@ -49,6 +49,7 @@ const RankingPage = () => {
         const res = await axios.get('http://localhost:8002/api/v1/perfil/', {
           withCredentials: true
         });
+        console.log("Datos de solicitud",res)
         // Asumiendo que res.data.favoritos es una lista de IDs: [1, 5, 10]
         //  QUEDA PENDIENTE
         //setFavoritos(new Set(res.data.favoritos || []));

@@ -46,13 +46,20 @@ const RankingPage = () => {
   useEffect(() => {
     const fetchFavoritosUser = async () => {
       try {
+        // Recuperamos el ID del usuario que guardaste durante el login
+        const userId = localStorage.getItem('usuarioId'); // O el método que uses para pasarlo
+        
+        if (!userId){
+          console.log("No se encontró usuarioId en localStorage. Asegúrate de que el usuario esté logueado.",userId );
+          return;
+        }
         const res = await axios.get(`http://localhost:8000/api/v1/favoritos/?usuarioId=${userId}`, {
           withCredentials: true
         });
-        console.log("Datos de solicitud",res)
+        console.log("Datos de solicitud",res.data)
         // Asumiendo que res.data.favoritos es una lista de IDs: [1, 5, 10]
         //  QUEDA PENDIENTE
-        //setFavoritos(new Set(res.data.favoritos || []));
+        setFavoritos(new Set(res.data.favoritos || []));
       } catch (err) {
         console.error("Error cargando favoritos iniciales:", err);
       }
@@ -89,10 +96,10 @@ const RankingPage = () => {
   };
 
   // 2. Lógica para guardar en la DB
-  const toggleFavorito = useCallback(async (uni) => {
+const toggleFavorito = useCallback(async (uni) => {
     const yaEsFavorito = favoritos.has(uni.id);
+    const userId = localStorage.getItem('usuarioId'); // Recuperamos el ID
 
-    // Crear la nueva lista de IDs para enviar al backend
     let nuevosFavoritosIds;
     if (yaEsFavorito) {
       nuevosFavoritosIds = Array.from(favoritos).filter(id => id !== uni.id);
@@ -101,19 +108,16 @@ const RankingPage = () => {
     }
 
     try {
-      // Petición al backend para actualizar el perfil, patch solo sustituye algunas cosas
-      //PUt llega a sustituir todo
-      await axios.patch('http://localhost:8000/api/v1//', {
+      await axios.patch('http://localhost:8000/api/v1/favoritos/', {
+        usuarioId: userId,            // <-- ¡Vital para que el backend sepa quién es!
         favoritos: nuevosFavoritosIds
       }, {
-        withCredentials: true, // Vital para enviar la sesión
-        // Forzamos el encabezado manualmente si es necesario
+        withCredentials: true,
         headers: {
           'X-CSRFToken': getCsrf()
         }
       });
 
-      // Si la DB respondió bien, actualizamos el estado local
       setFavoritos(new Set(nuevosFavoritosIds));
 
       showToast(yaEsFavorito

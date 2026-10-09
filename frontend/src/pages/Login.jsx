@@ -60,6 +60,8 @@ const Login = () => {
                     const parts = resultText.split(":");
                     if (parts.length > 1) {
                         userId = parts[1].trim();
+                        // Guardamos el ID en localStorage para que las demás vistas lo usen
+                        localStorage.setItem('usuarioId', userId);
                     }
                 }
 

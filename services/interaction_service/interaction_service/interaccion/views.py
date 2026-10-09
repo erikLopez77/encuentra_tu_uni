@@ -68,7 +68,29 @@ class FavoritoView(generics.GenericAPIView):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+    def patch(self, request, *args, **kwargs):
+        usuario_id = self.get_user_id(request)
+        nuevos_favoritos_ids = request.data.get('favoritos', [])
+
+        if not usuario_id:
+            return Response({'error': "Se requiere 'usuarioId' para actualizar favoritos."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Eliminar los favoritos existentes del usuario
+        Favorito.objects.filter(usuarioId=usuario_id).delete()
+
+        # Crear nuevos favoritos
+        nuevos_favoritos = [Favorito(universidadId=uni_id, usuarioId=usuario_id) for uni_id in nuevos_favoritos_ids]
+        Favorito.objects.bulk_create(nuevos_favoritos)
+
+        # Invalidar caché del usuario al actualizar favoritos
+        cache_key = f"favoritos_user_{usuario_id}"
+        try:
+            cache.delete(cache_key)
+        except Exception:
+            pass
+
+        return Response({'detail': 'Favoritos actualizados correctamente.'}, status=status.HTTP_200_OK)
     def post(self, request, *args, **kwargs):
         universidad_id = request.data.get('universidadId')
         usuario_id = request.data.get('usuarioId')

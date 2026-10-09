@@ -8,7 +8,7 @@ const getCsrf = () => {
     return match ? match[1] : '';
 };
 
-const API = 'http://localhost:8002/api/v1';
+const API = 'http://localhost:8000/api/v1';
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
 const MisFavPage = () => {
@@ -26,9 +26,17 @@ const MisFavPage = () => {
             setError('');
             try {
                 // GET /api/perfil/ — Django también pone la cookie csrftoken aquí
-                const res = await axios.get(`${API}/perfil/`, { withCredentials: true });
-                setUnis(res.data.favoritos_detalles ?? []);
+                const userId=localStorage.getItem("usuarioId");
+                if (!userId){
+                    console.log("No se encontró usuarioId en localStorage. Asegúrate de que el usuario esté logueado.",userId );
+                    return;
+                }
+                const res = await axios.get(`${API}/favoritos/?usuarioId=${userId}`, { withCredentials: true });
+                const res2= await axios.get(`http://localhost:8001/api/v1/universidades/?ids=${res.data.favoritos.join(',')}`, { withCredentials: true });
+
                 setIds(res.data.favoritos ?? []);
+                setUnis(res2.data.favoritos_detalles ?? []);
+                
             } catch (err) {
                 console.error('Error cargando favoritos:', err);
                 if (err.response?.status === 403 || err.response?.status === 401) {
@@ -51,14 +59,16 @@ const MisFavPage = () => {
     const quitarFavorito = async (uni) => {
         setQuitando(uni.id);
         const nuevosIds = ids.filter((id) => id !== uni.id);
-
+        const usuarioId=localStorage.getItem("usuarioId");
         try {
             // Obtenemos el token de la cookie
             const csrfToken = getCsrf();
 
-            await axios.put(
-                `${API}/perfil/`,
-                { favoritos: nuevosIds },
+            await axios.patch(
+                `${API}/favoritos/`,
+                { 
+                    favoritos: nuevosIds,
+                    usuarioId },
                 {
                     withCredentials: true, // Crucial para la sesión
                     headers: {
@@ -66,7 +76,7 @@ const MisFavPage = () => {
                     }
                 }
             );
-
+            
             // Actualizamos los estados locales solo si la API respondió 200 OK
             setUnis((prev) => prev.filter((u) => u.id !== uni.id));
             setIds(nuevosIds);

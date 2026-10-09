@@ -19,8 +19,7 @@ class FavoritoView(generics.GenericAPIView):
 
     def get_user_id(self, request):
         usuario_id = (
-            request.query_params.get('usuarioId') or
-            request.query_params.get('usuario_id') or
+            request.query_params.get('usuarioId')  or
             (request.data.get('usuarioId') if hasattr(request, 'data') else None) or
             (request.user.id if request.user.is_authenticated else None)
         )
@@ -31,7 +30,14 @@ class FavoritoView(generics.GenericAPIView):
 
         if usuario_id:
             cache_key = f"favoritos_user_{usuario_id}"
-            cached_ids = cache.get(cache_key)
+            cached_ids = None
+            
+            # Protegemos la lectura de caché por si Redis llega a fallar
+            try:
+                cached_ids = cache.get(cache_key)
+            except Exception:
+                cached_ids = None
+
             if cached_ids is not None:
                 return Response({
                     'favoritos': cached_ids,
@@ -40,6 +46,7 @@ class FavoritoView(generics.GenericAPIView):
                 }, status=status.HTTP_200_OK)
 
             # Si no está en caché, consultar DB
+            # Asegúrate de que los nombres de los campos coincidan con tu models.py (ej. usuarioId o usuario_id)
             favoritos_qs = Favorito.objects.filter(usuarioId=usuario_id)
             favoritos_ids = list(favoritos_qs.values_list('universidadId', flat=True))
 
@@ -61,7 +68,7 @@ class FavoritoView(generics.GenericAPIView):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
+    
     def post(self, request, *args, **kwargs):
         universidad_id = request.data.get('universidadId')
         usuario_id = request.data.get('usuarioId')

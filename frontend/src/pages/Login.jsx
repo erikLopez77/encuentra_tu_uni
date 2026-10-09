@@ -50,7 +50,37 @@ const Login = () => {
             const textResponse = await response.text();
 
             if (textResponse.includes("SUCCESS")) {
+                // Extraer el resultado de la etiqueta SOAP
+                const matchResult = textResponse.match(/<tns:authenticate_userResult>(.*?)<\/tns:authenticate_userResult>/) || textResponse.match(/<authenticate_userResult>(.*?)<\/authenticate_userResult>/);
+                const resultText = matchResult ? matchResult[1] : '';
+                
+                // Obtener el ID del usuario (ejemplo: "SUCCESS:5" -> id = 5)
+                let userId = null;
+                if (resultText.startsWith("SUCCESS")) {
+                    const parts = resultText.split(":");
+                    if (parts.length > 1) {
+                        userId = parts[1].trim();
+                    }
+                }
+
                 navigate('/dashboard');
+
+                // Hacer la petición a favoritos pasando el usuarioId explícitamente
+                if (userId) {
+                    const res = await fetch(`http://localhost:8000/api/v1/favoritos/?usuarioId=${userId}`, {
+                        method: 'GET',
+                        credentials: 'include'
+                    });
+
+                    const contentType = res.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const favData = await res.json();
+                        console.log("Favoritos cargados:", favData);
+                    } else {
+                        const errorText = await res.text();
+                        console.error("El servidor respondió con HTML (Error 500):", errorText);
+                    }
+                }
             } else if (textResponse.includes("INVALID_CREDENTIALS")) {
                 setError('Correo o contraseña incorrectos.');
             } else if (textResponse.includes('faultstring')) {

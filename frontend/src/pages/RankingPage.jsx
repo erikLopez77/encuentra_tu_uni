@@ -46,7 +46,7 @@ const RankingPage = () => {
   useEffect(() => {
     const fetchFavoritosUser = async () => {
       try {
-        const res = await axios.get('http://localhost:8002/api/v1/perfil/', {
+        const res = await axios.get(`http://localhost:8000/api/v1/favoritos/?usuarioId=${userId}`, {
           withCredentials: true
         });
         console.log("Datos de solicitud",res)
@@ -103,7 +103,7 @@ const RankingPage = () => {
     try {
       // Petición al backend para actualizar el perfil, patch solo sustituye algunas cosas
       //PUt llega a sustituir todo
-      await axios.patch('http://localhost:8002/api/v1/perfil/', {
+      await axios.patch('http://localhost:8000/api/v1//', {
         favoritos: nuevosFavoritosIds
       }, {
         withCredentials: true, // Vital para enviar la sesión

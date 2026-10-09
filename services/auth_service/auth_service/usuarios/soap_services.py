@@ -139,6 +139,6 @@ def soap_login_view(request):
     if user is not None:
         # login() crea la sesión => va a Redis por SESSION_ENGINE configurado
         login(request, user)
-        return _soap_response('SUCCESS')
-
+        # Devolvemos SUCCESS concatenado con el ID del usuario
+        return _soap_response(f'SUCCESS:{user.id}')
     return _soap_response('INVALID_CREDENTIALS')

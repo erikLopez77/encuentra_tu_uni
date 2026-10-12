@@ -31,11 +31,22 @@ const MisFavPage = () => {
                     console.log("No se encontró usuarioId en localStorage. Asegúrate de que el usuario esté logueado.",userId );
                     return;
                 }
+                //peticion para obtener los id favoritos del usuario
                 const res = await axios.get(`${API}/favoritos/?usuarioId=${userId}`, { withCredentials: true });
-                const res2= await axios.get(`http://localhost:8001/api/v1/universidades/?ids=${res.data.favoritos.join(',')}`, { withCredentials: true });
+                //en caso de estar vacio, darle un array vacio
+                const favoritosIds = res.data.favoritos ?? [];
 
-                setIds(res.data.favoritos ?? []);
-                setUnis(res2.data.favoritos_detalles ?? []);
+                const res2 = await axios.get(`http://localhost:8001/api/v1/universidades/?ids=${favoritosIds.join(',')}`, { withCredentials: true });
+
+                setIds(favoritosIds);
+                // El universidad_service devuelve un array plano con ?ids=...
+                // cond. ?valorVerdadero : valorFalso
+                console.log("res2.data:", res2.data); 
+                const detalles = Array.isArray(res2.data)
+                    ? res2.data
+                    //?? toma el valor derecho si el izqdo. es null o undefined
+                    : (res2.data.results ?? res2.data.favoritos_detalles ?? []);
+                setUnis(detalles);
                 
             } catch (err) {
                 console.error('Error cargando favoritos:', err);

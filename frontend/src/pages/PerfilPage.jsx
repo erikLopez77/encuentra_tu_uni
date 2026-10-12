@@ -29,7 +29,6 @@ const PerfilPage = () => {
     const fetchUserData = async () => {
         try {
             const res = await axios.get(`${API}/perfil/`, { withCredentials: true });
-            console.log("Datos del perfil obtenidos:", res.data);
             // Verificamos que la respuesta traiga los datos esperados antes de actualizar el estado
             if (res.data && res.data.email) {
                 setUser({

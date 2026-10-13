@@ -1,0 +1,68 @@
+services:
+  # Servicio de Redis centralizado
+  redis:
+    image: redis:latest
+    container_name: redis-container
+    ports:
+      - "6379:6379"
+
+  # 1. Auth Service (Puerto 8002)
+  auth_service:
+    build:
+      context: ./services/auth_service/auth_service
+      dockerfile: ../../Dockerfile
+    container_name: auth_service_container
+    command: python manage.py runserver 0.0.0.0:8002
+    volumes:
+      - ./services/auth_service/auth_service:/app
+    ports:
+      - "8002:8002"
+    environment:
+      - REDIS_LOCATION=redis://redis:6379/1
+    depends_on:
+      - redis
+
+  # 2. University Service (Puerto 8001)
+  university_service:
+    build:
+      context: ./services/university_service/university_service
+      dockerfile: ../../Dockerfile
+    container_name: university_service_container
+    command: python manage.py runserver 0.0.0.0:8001
+    volumes:
+      - ./services/university_service/university_service:/app
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+
+  # 3. Interaction Service (Puerto 8000)
+  interaction_service:
+    build:
+      context: ./services/interaction_service/interaction_service
+      dockerfile: ../../Dockerfile
+    container_name: interaction_service_container
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./services/interaction_service/interaction_service:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_LOCATION=redis://redis:6379/1
+    depends_on:
+      - redis
+
+  # 4. Frontend React (Puerto 5173)
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend_container
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - auth_service
+      - university_service
+      - interaction_service

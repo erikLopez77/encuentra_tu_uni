@@ -1,0 +1,34 @@
+# Entornos virtuales (el más importante)
+backend/djenv/
+**/djenv/
+*.pyc
+ssproyecto/static/admin/
+.env
+# Python (archivos compilados)
+**/__pycache__/
+
+
+frontend/node_modules/
+node_modules/
+/frontend/package-lock.json
+package-lock.json
+# Archivos de compilación (lo que genera el comando build)
+frontend/dist/
+frontend/dist-ssr/
+build/
+*.local
+
+# Logs de errores
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caché de editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Caché de Vite
+frontend/.vite/
+.git

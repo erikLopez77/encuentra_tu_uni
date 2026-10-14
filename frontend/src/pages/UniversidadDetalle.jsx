@@ -71,7 +71,7 @@ const StarRating = ({ value, onChange, readOnly = false }) => {
 };
 
 /* ─── Componente tarjeta de comentario ────────────────────────────── */
-const ComentarioCard = ({ comentario }) => {
+const ComentarioCard = ({ comentario, esMio = false, onEliminar, eliminando = false }) => {
   const fecha = new Date(comentario.fecha).toLocaleDateString('es-MX', {
     year: 'numeric', month: 'short', day: 'numeric',
   });
@@ -103,6 +103,30 @@ const ComentarioCard = ({ comentario }) => {
           <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>{fecha}</p>
         </div>
         <StarRating value={comentario.calificacion} readOnly />
+        {/* Eliminar: solo aparece en tu propia reseña */}
+        {esMio && (
+          <button
+            type="button"
+            onClick={() => onEliminar(comentario)}
+            disabled={eliminando}
+            title="Eliminar mi reseña"
+            style={{
+              border: 'none',
+              background: 'transparent',
+              cursor: eliminando ? 'wait' : 'pointer',
+              fontSize: '15px',
+              padding: '4px 6px',
+              borderRadius: '8px',
+              color: '#9ca3af',
+              lineHeight: 1,
+              transition: 'color 0.15s, background 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent'; }}
+          >
+            {eliminando ? '⏳' : '🗑️'}
+          </button>
+        )}
       </div>
       <p style={{
         color: '#374151', fontSize: '14px', lineHeight: '1.6',
@@ -125,6 +149,8 @@ const PanelComentarios = ({ universidadId }) => {
   const [error, setError] = useState('');
   const [yaComento, setYaComento] = useState(false);
   const [usuarioId, setUsuarioId] = useState(null);
+  const [usuarioNombre, setUsuarioNombre] = useState('');
+  const [eliminandoId, setEliminandoId] = useState(null);
 
   const cargarComentarios = useCallback(async () => {
     try {
@@ -144,8 +170,18 @@ const PanelComentarios = ({ universidadId }) => {
     const verificarSesion = async () => {
       try {
         const res = await axios.get('http://localhost:8002/api/v1/perfil/');
+        // Si no hay sesión, el auth_service responde 200 con { isAuthenticated: false }
+        if (!res.data?.id) {
+          setSesionActiva(false);
+          return;
+        }
         setSesionActiva(true);
         setUsuarioId(res.data.id);
+        // El interaction_service no resuelve el nombre (no comparte la sesión),
+        // así que lo capturamos aquí y lo enviamos junto al comentario
+        setUsuarioNombre(
+          `${res.data.nombre || ''} ${res.data.apellidos || ''}`.trim()
+        );
       } catch {
         setSesionActiva(false);
       }
@@ -182,9 +218,16 @@ const PanelComentarios = ({ universidadId }) => {
     setEnviando(true);
     setError('');
     try {
-      await axios.post(`/api/universidades/${universidadId}/comentarios/`, {
+      // ⚠️ La ruta debe ir contra el interaction_service (puerto 8000).
+      // axios.defaults.baseURL apunta al auth_service (8002), por eso una URL
+      // relativa manda el POST al servicio equivocado y responde 404.
+      // También enviamos usuarioId: el interaction_service no comparte la
+      // sesión del auth_service, así que el ID debe viajar en el body.
+      await axios.post(`http://localhost:8000/api/v1/universidades/${universidadId}/comentarios/`, {
         texto: texto.trim(),
         calificacion,
+        usuarioId,
+        autorNombre: usuarioNombre,
       },
         {
           withCredentials: true,
@@ -195,11 +238,36 @@ const PanelComentarios = ({ universidadId }) => {
     } catch (err) {
       // Muestra el error exacto que devuelve el backend (campo 'texto' o 'detail')
       const data = err.response?.data;
-      const msg = data?.texto?.[0] || data?.detail || data?.non_field_errors?.[0]
+      const msg = data?.texto?.[0] || data?.usuarioId?.[0] || data?.detail || data?.non_field_errors?.[0]
                   || 'Error al enviar. Intenta de nuevo.';
       setError(msg);
     } finally {
       setEnviando(false);
+    }
+  };
+
+  // Eliminar mi propia reseña (el id viaja en query params: DELETE con body
+  // no es estándar y algunos proxies lo bloquean)
+  const handleEliminar = async (comentario) => {
+    if (!window.confirm('¿Eliminar tu reseña? Esta acción no se puede deshacer.')) return;
+    setEliminandoId(comentario.id);
+    setError('');
+    try {
+      await axios.delete(`http://localhost:8000/api/v1/universidades/${universidadId}/comentarios/`, {
+        params: { id: comentario.id, usuarioId },
+      });
+      // Si eliminaste la tuya, limpia el formulario para que puedas escribir otra
+      if (comentario.autor_id === usuarioId) {
+        setTexto('');
+        setCalificacion(5);
+        setYaComento(false);
+      }
+      await cargarComentarios();
+    } catch (err) {
+      const data = err.response?.data;
+      setError(data?.error || data?.detail || 'No se pudo eliminar la reseña.');
+    } finally {
+      setEliminandoId(null);
     }
   };
 
@@ -349,7 +417,15 @@ const PanelComentarios = ({ universidadId }) => {
             </p>
           </div>
         ) : (
-          comentarios.map((c) => <ComentarioCard key={c.id} comentario={c} />)
+          comentarios.map((c) => (
+            <ComentarioCard
+              key={c.id}
+              comentario={c}
+              esMio={sesionActiva && c.autor_id === usuarioId}
+              onEliminar={handleEliminar}
+              eliminando={eliminandoId === c.id}
+            />
+          ))
         )}
       </div>
 

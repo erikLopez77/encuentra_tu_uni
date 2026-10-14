@@ -14,6 +14,10 @@ class ComentarioSerializer(serializers.ModelSerializer):
         }
 
     def get_autor_nombre(self, obj):
+        # Primero usamos el nombre guardado al publicar el comentario
+        if obj.autorNombre:
+            return obj.autorNombre
+        # Respaldo por si el comentario es anterior al campo autorNombre
         request = self.context.get('request')
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             if request.user.id == obj.usuarioId:

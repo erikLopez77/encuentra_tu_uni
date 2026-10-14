@@ -182,6 +182,7 @@ class ComentarioView(generics.GenericAPIView):
             raise ValidationError({'texto': 'El comentario no puede estar vacío.'})
 
         calificacion = request.data.get('calificacion', 5)
+        autor_nombre = (request.data.get('autorNombre') or '').strip()
 
         # Si el usuario ya comentó previamente en esta universidad, actualiza su reseña
         comentario_existente = Comentario.objects.filter(
@@ -192,6 +193,8 @@ class ComentarioView(generics.GenericAPIView):
         if comentario_existente:
             comentario_existente.texto = texto.strip()
             comentario_existente.calificacion = calificacion
+            if autor_nombre:
+                comentario_existente.autorNombre = autor_nombre
             comentario_existente.save()
             serializer = self.get_serializer(comentario_existente)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -200,7 +203,8 @@ class ComentarioView(generics.GenericAPIView):
             universidadId=universidad_id,
             usuarioId=usuario_id,
             texto=texto.strip(),
-            calificacion=calificacion
+            calificacion=calificacion,
+            autorNombre=autor_nombre
         )
         serializer = self.get_serializer(comentario)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -237,6 +241,8 @@ class ComentarioView(generics.GenericAPIView):
             comentario.texto = request.data['texto'].strip()
         if 'calificacion' in request.data:
             comentario.calificacion = request.data['calificacion']
+        if 'autorNombre' in request.data and request.data['autorNombre']:
+            comentario.autorNombre = request.data['autorNombre'].strip()
         comentario.save()
 
         serializer = self.get_serializer(comentario)

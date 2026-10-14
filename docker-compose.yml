@@ -8,13 +8,14 @@ services:
 
   # 1. Auth Service (Puerto 8002)
   auth_service:
+    #indicamos a Docker dónde buscar los archivos necesarios para construir la imagen
     build:
-      context: ./services/auth_service/auth_service
-      dockerfile: ../../Dockerfile
+      context: ./services/auth_service
     container_name: auth_service_container
-    command: python manage.py runserver 0.0.0.0:8002
+    command: python auth_service/manage.py runserver 0.0.0.0:8002
+    #permite alojar /app/auth_service/manage.py, conecta nuestra pc al contenedor
     volumes:
-      - ./services/auth_service/auth_service:/app
+      - ./services/auth_service:/app
     ports:
       - "8002:8002"
     environment:
@@ -24,13 +25,14 @@ services:
 
   # 2. University Service (Puerto 8001)
   university_service:
+    #indicamos a Docker dónde buscar los archivos necesarios para construir la imagen
     build:
-      context: ./services/university_service/university_service
-      dockerfile: ../../Dockerfile
+      context: ./services/university_service
     container_name: university_service_container
-    command: python manage.py runserver 0.0.0.0:8001
+    command: python university_service/manage.py runserver 0.0.0.0:8001
+    #permite alojar /app/auth_service/manage.py, conecta nuestra pc al contenedor
     volumes:
-      - ./services/university_service/university_service:/app
+      - ./services/university_service:/app
     ports:
       - "8001:8001"
     depends_on:
@@ -38,13 +40,14 @@ services:
 
   # 3. Interaction Service (Puerto 8000)
   interaction_service:
+    #indicamos a Docker dónde buscar los archivos necesarios para construir la imagen
     build:
-      context: ./services/interaction_service/interaction_service
-      dockerfile: ../../Dockerfile
+      context: ./services/interaction_service
     container_name: interaction_service_container
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python interaction_service/manage.py runserver 0.0.0.0:8000
+    #permite alojar /app/auth_service/manage.py, conecta nuestra pc al contenedor
     volumes:
-      - ./services/interaction_service/interaction_service:/app
+      - ./services/interaction_service:/app
     ports:
       - "8000:8000"
     environment:

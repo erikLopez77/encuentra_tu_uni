@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.contrib.auth import update_session_auth_hash, logout
 from .models import  Perfil
 from .serializers import  PerfilSerializer, RegisterSerializer
+from .rabbit import publicar_evento
 from django.contrib.auth.models import User
 # Create your views here.
 class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
@@ -83,6 +84,18 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
         # Limpiar caché y guardar perfil
         cache.delete(f"perfil_user_{user.id}")
         perfil.save()
+
+        # Evento hacia RabbitMQ: si cambió el nombre, notificamos a los demás
+        # servicios (interaction_service actualiza los comentarios del usuario).
+        # Se envían ambos ids porque el interaction_service identifica a los
+        # usuarios con el id del perfil, no con el id de Django.
+        if 'first_name' in data or 'last_name' in data:
+            publicar_evento('usuario.actualizado', {
+                'user_id': user.id,
+                'perfil_id': perfil.id,
+                'nombre': user.first_name,
+                'apellidos': user.last_name,
+            })
 
         serializer = self.get_serializer(perfil)
         return Response(serializer.data)

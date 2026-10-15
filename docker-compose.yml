@@ -6,6 +6,20 @@ services:
     ports:
       - "6379:6379"
 
+  # RabbitMQ: broker de mensajes para eventos entre microservicios
+  # (auth_service publica eventos; interaction_service los consume)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_container
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Consola web de administración
+    environment:
+      # Usuario propio: 'guest' solo acepta conexiones desde localhost,
+      # y los demás contenedores se conectan por red de Docker
+      - RABBITMQ_DEFAULT_USER=encuentra
+      - RABBITMQ_DEFAULT_PASS=encuentra123
+
   # 1. Auth Service (Puerto 8002)
   auth_service:
     #indicamos a Docker dónde buscar los archivos necesarios para construir la imagen
@@ -20,8 +34,10 @@ services:
       - "8002:8002"
     environment:
       - REDIS_LOCATION=redis://redis:6379/1
+      - RABBITMQ_URL=amqp://encuentra:encuentra123@rabbitmq:5672/
     depends_on:
       - redis
+      - rabbitmq
 
   # 2. University Service (Puerto 8001)
   university_service:
@@ -52,8 +68,10 @@ services:
       - "8000:8000"
     environment:
       - REDIS_LOCATION=redis://redis:6379/1
+      - RABBITMQ_URL=amqp://encuentra:encuentra123@rabbitmq:5672/
     depends_on:
       - redis
+      - rabbitmq
 
   # 4. Frontend React (Puerto 5173)
   frontend:

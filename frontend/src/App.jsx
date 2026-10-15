@@ -6,6 +6,7 @@ import axios from 'axios';
 import Navbar from './components/Navbar';
 import UserNavbar from './components/UserNavbar';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Páginas
 import HomePage from './pages/HomePage';
@@ -80,12 +81,15 @@ function App() {
           <Route path="/recuperar-cuenta" element={<RetriveAccount />} />
         </Route>
 
-        {/* Rutas exclusivas para usuarios autenticados */}
-        <Route element={<AuthLayout />}>
-          <Route path="/dashboard" element={<UserDashboard />} />
-          <Route path="/favoritos" element={<MisFavPage />} />
-          <Route path="/ranking" element={<RankingPage />} />
-          <Route path="/perfil" element={<PerfilPage />} />
+        {/* Rutas exclusivas para usuarios autenticados: ProtectedRoute verifica
+            la sesión y redirige a "/" si no hay sesión activa */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AuthLayout />}>
+            <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/favoritos" element={<MisFavPage />} />
+            <Route path="/ranking" element={<RankingPage />} />
+            <Route path="/perfil" element={<PerfilPage />} />
+          </Route>
         </Route>
       </Routes>
     </Router>

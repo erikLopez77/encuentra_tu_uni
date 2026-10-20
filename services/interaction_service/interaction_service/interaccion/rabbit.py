@@ -9,18 +9,27 @@ RABBITMQ_URL_DEFAULT = 'amqp://encuentra:encuentra123@localhost:5672/'
 COLA = 'comentarios_sincronizacion'
 EXCHANGE = 'usuarios'
 
-
-def _procesar_evento(body):
+#consumer de eventos de RabbitMQ para sincronizar los nombres de usuario en los comentarios
+def _procesar_evento(body, routing_key=None):
     """Aplica el evento al modelo de comentarios de ESTE servicio (su propia BD)."""
+    from django.db import connection, close_old_connections
     from .models import Comentario  # import diferido: evita el AppRegistryNotReady
 
-    evento = json.loads(body)
-    if evento.get('evento') == 'usuario.actualizado':
-        perfil_id = evento.get('perfil_id')
-        nombre = f"{evento.get('nombre') or ''} {evento.get('apellidos') or ''}".strip()
-        if perfil_id and nombre:
-            actualizados = Comentario.objects.filter(usuarioId=perfil_id).update(autorNombre=nombre)
-            print(f'[RabbitMQ] comentarios actualizados para usuario #{perfil_id}: {actualizados}')
+    close_old_connections()
+    try:
+        evento = json.loads(body)
+        tipo = evento.get('evento') or routing_key
+        if tipo == 'usuario.actualizado':
+            perfil_id = evento.get('perfil_id')
+            user_id = evento.get('user_id')
+            nombre = f"{evento.get('nombre') or ''} {evento.get('apellidos') or ''}".strip()
+            
+            ids = [i for i in [perfil_id, user_id] if i is not None]
+            if ids and nombre:
+                actualizados = Comentario.objects.filter(usuarioId__in=ids).update(autorNombre=nombre)
+                print(f'[RabbitMQ] comentarios actualizados para usuario (perfil={perfil_id}, user={user_id}): {actualizados} fila(s) -> "{nombre}"')
+    finally:
+        connection.close()
 
 
 def _consumir():
@@ -38,12 +47,14 @@ def _consumir():
 
             def callback(ch, method, properties, body):
                 try:
-                    _procesar_evento(body)
+                    _procesar_evento(body, routing_key=method.routing_key)
+                    #si la actualizacion es exitosa, le avisamos a Rabbit para eliminar el mensaje de la cola
                     ch.basic_ack(delivery_tag=method.delivery_tag)
                 except Exception as e:
                     # Evento malformado o error de BD: se descarta (requeue=False)
                     # para no provocar un bucle infinito de reintentos
                     print(f'[RabbitMQ] Error procesando evento: {e}')
+                    #si la actualizacion falla, le avisamos a Rabbit para eliminar el mensaje de la cola y no volver a procesarlo 
                     ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
             channel.basic_consume(queue=COLA, on_message_callback=callback)

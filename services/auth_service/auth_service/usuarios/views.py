@@ -91,6 +91,7 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
         # usuarios con el id del perfil, no con el id de Django.
         if 'first_name' in data or 'last_name' in data:
             publicar_evento('usuario.actualizado', {
+                'evento': 'usuario.actualizado',
                 'user_id': user.id,
                 'perfil_id': perfil.id,
                 'nombre': user.first_name,

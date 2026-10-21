@@ -1,7 +1,8 @@
-
+import logging
 import os
+
 import pika
-from django.db import connection
+from django.db import connection, transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework import generics, permissions, status
@@ -13,8 +14,10 @@ from django.core.cache import cache
 from django.contrib.auth import update_session_auth_hash, logout
 from .models import Perfil
 from .serializers import PerfilSerializer, RegisterSerializer
-from .rabbit import publicar_evento
+from .rabbit import encolar_evento_outbox
 from django.contrib.auth.models import User
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -124,7 +127,7 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
             try:
                 cache.set(cache_key, perfil, timeout=3600)
             except Exception as e:
-                print(f"Redis no disponible: {e}")
+                logger.warning("Redis no disponible al cachear perfil: %s", e)
         return perfil
 
     def update(self, request, *args, **kwargs):
@@ -159,29 +162,35 @@ class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
             user.set_password(password)
             user_changed = True
 
-        # Guardamos los cambios del usuario si hubo alguno
-        if user_changed:
-            user.save()
-            # Solo si se cambió la contraseña, actualizamos el hash de sesión
-            if 'password' in data:
-                update_session_auth_hash(request, user)
+        # Guardamos los cambios del usuario y el evento Outbox en una sola transacción
+        # atómica: si algo falla, ni el usuario ni el evento se guardan (consistencia total).
+        nombre_cambio = 'first_name' in data or 'last_name' in data
+        with transaction.atomic():
+            if user_changed:
+                user.save()
+                # Solo si se cambió la contraseña, actualizamos el hash de sesión
+                if 'password' in data:
+                    update_session_auth_hash(request, user)
 
-        # Limpiar caché y guardar perfil
-        cache.delete(f"perfil_user_{user.id}")
-        perfil.save()
+            # Limpiar caché y guardar perfil
+            cache.delete(f"perfil_user_{user.id}")
+            perfil.save()
 
-        # Evento hacia RabbitMQ: si cambió el nombre, notificamos a los demás
-        # servicios (interaction_service actualiza los comentarios del usuario).
-        # Se envían ambos ids porque el interaction_service identifica a los
-        # usuarios con el id del perfil, no con el id de Django.
-        if 'first_name' in data or 'last_name' in data:
-            publicar_evento('usuario.actualizado', {
-                'evento': 'usuario.actualizado',
-                'user_id': user.id,
-                'perfil_id': perfil.id,
-                'nombre': user.first_name,
-                'apellidos': user.last_name,
-            })
+            # Outbox Pattern: si cambió el nombre, creamos el evento en la BD
+            # (misma transacción). El worker de rabbit.py lo publicará en RabbitMQ.
+            # Así, aunque RabbitMQ esté caído, el evento no se pierde.
+            if nombre_cambio:
+                encolar_evento_outbox('usuario.actualizado', {
+                    'evento': 'usuario.actualizado',
+                    'user_id': user.id,
+                    'perfil_id': perfil.id,
+                    'nombre': user.first_name,
+                    'apellidos': user.last_name,
+                })
+                logger.info(
+                    "Evento usuario.actualizado encolado | user_id=%s | nombre='%s %s'",
+                    user.id, user.first_name, user.last_name,
+                )
 
         serializer = self.get_serializer(perfil)
         return Response(serializer.data)

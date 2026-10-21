@@ -49,6 +49,7 @@ CSRF_COOKIE_HTTPONLY = False  # Permite que JS lea la cookie CSRF
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -177,15 +178,70 @@ MAILERS = {
 }
 
 # Configuración de Redis para la caché y sesiones
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {
-                "protocol": 2,  # Fuerza el uso del protocolo RESP2 compatible con tu contenedor
+# En CI (GitHub Actions) se puede sobrescribir con la var de entorno CACHE_BACKEND
+# para usar la caché en memoria sin necesitar un Redis real.
+_cache_backend = os.environ.get(
+    'CACHE_BACKEND', 'django_redis.cache.RedisCache'
+)
+if _cache_backend == 'django_redis.cache.RedisCache':
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": os.environ.get('REDIS_LOCATION', 'redis://redis:6379/1'),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {
+                    "protocol": 2,  # Fuerza el uso del protocolo RESP2
+                },
             },
         }
     }
+else:
+    # Backend alternativo (ej: LocMemCache para tests en CI)
+    CACHES = {
+        "default": {
+            "BACKEND": _cache_backend,
+        }
+    }
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+# Todos los loggers del proyecto (usuarios.rabbit, usuarios.views, etc.) escriben
+# a la consola con timestamp, nivel y nombre del módulo.  Con docker-compose logs
+# esto es visible en tiempo real y fácil de filtrar por servicio.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} [{levelname}] {name}: {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        # Nuestros propios módulos: INFO+
+        'usuarios': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Django interno: solo WARNING+ para no saturar los logs
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
 }

@@ -1,0 +1,128 @@
+name: CI — Tests de microservicios
+
+# Se ejecuta en cada push a cualquier rama y en cada Pull Request hacia main.
+# Esto garantiza que ningún cambio roto llegue a la rama principal.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: Auth Service
+  # ---------------------------------------------------------------------------
+  auth-service-tests:
+    name: "🔐 Auth Service"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/auth_service/auth_service
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: services/auth_service/requirements.txt
+
+      - name: Instalar dependencias
+        working-directory: services/auth_service
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar migraciones
+        env:
+          DJANGO_SETTINGS_MODULE: auth_service.settings
+          # Sin broker real en CI: el worker Outbox no arranca (RUN_MAIN != 'true')
+          RABBITMQ_URL: "amqp://guest:guest@localhost:5672/"
+          # Sobrescribir caché con backend en memoria para no necesitar Redis en CI
+          CACHE_BACKEND: "django.core.cache.backends.locmem.LocMemCache"
+        run: python manage.py migrate
+
+      - name: Correr tests
+        env:
+          DJANGO_SETTINGS_MODULE: auth_service.settings
+          RABBITMQ_URL: "amqp://guest:guest@localhost:5672/"
+          CACHE_BACKEND: "django.core.cache.backends.locmem.LocMemCache"
+        run: python manage.py test --verbosity=2
+
+  # ---------------------------------------------------------------------------
+  # Job 2: Interaction Service
+  # ---------------------------------------------------------------------------
+  interaction-service-tests:
+    name: "💬 Interaction Service"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/interaction_service/interaction_service
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: services/interaction_service/requirements.txt
+
+      - name: Instalar dependencias
+        working-directory: services/interaction_service
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar migraciones
+        env:
+          DJANGO_SETTINGS_MODULE: interaction_service.settings
+          RABBITMQ_URL: "amqp://guest:guest@localhost:5672/"
+          CACHE_BACKEND: "django.core.cache.backends.locmem.LocMemCache"
+        run: python manage.py migrate
+
+      - name: Correr tests
+        env:
+          DJANGO_SETTINGS_MODULE: interaction_service.settings
+          RABBITMQ_URL: "amqp://guest:guest@localhost:5672/"
+          CACHE_BACKEND: "django.core.cache.backends.locmem.LocMemCache"
+        run: python manage.py test --verbosity=2
+
+  # ---------------------------------------------------------------------------
+  # Job 3: University Service
+  # ---------------------------------------------------------------------------
+  university-service-tests:
+    name: "🎓 University Service"
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/university_service/university_service
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: services/university_service/requirements.txt
+
+      - name: Instalar dependencias
+        working-directory: services/university_service
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar migraciones
+        env:
+          DJANGO_SETTINGS_MODULE: university_service.settings
+        run: python manage.py migrate
+
+      - name: Correr tests
+        env:
+          DJANGO_SETTINGS_MODULE: university_service.settings
+        run: python manage.py test --verbosity=2

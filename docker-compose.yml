@@ -5,6 +5,11 @@ services:
     container_name: redis-container
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   # RabbitMQ: broker de mensajes para eventos entre microservicios
   # (auth_service publica eventos; interaction_service los consume)
@@ -19,6 +24,11 @@ services:
       # y los demás contenedores se conectan por red de Docker
       - RABBITMQ_DEFAULT_USER=encuentra
       - RABBITMQ_DEFAULT_PASS=encuentra123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   # 1. Auth Service (Puerto 8002)
   auth_service:
@@ -38,6 +48,12 @@ services:
     depends_on:
       - redis
       - rabbitmq
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/v1/health/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # 2. University Service (Puerto 8001)
   university_service:
@@ -53,6 +69,12 @@ services:
       - "8001:8001"
     depends_on:
       - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # 3. Interaction Service (Puerto 8000)
   interaction_service:
@@ -72,6 +94,12 @@ services:
     depends_on:
       - redis
       - rabbitmq
+    healthcheck:
+      test: ["CMD", "python","-c","import urlib.request; urlib.request.urlopen('http://localhost:8000/api/v1/health/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # 4. Frontend React (Puerto 5173)
   frontend:

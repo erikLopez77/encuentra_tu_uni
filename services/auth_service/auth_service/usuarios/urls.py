@@ -6,6 +6,7 @@ from .soap_services import soap_login_view
 
 #localhost:8002/api/v1
 urlpatterns=[
+    path('health/', views.health_check, name='health-check'),
     path('perfil/',views.PerfilCreateDetailView.as_view(),name='perfil'),
     path('register/', views.RegisterView.as_view(), name='register'),
     path('retrieve/',views.PasswordResetUpdateView.as_view(), name='retrieve_password'),

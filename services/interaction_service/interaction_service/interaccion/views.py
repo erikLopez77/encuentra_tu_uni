@@ -1,10 +1,45 @@
-from rest_framework import generics, status
+
+from django.http import JsonResponse
+from django.utils import timezone
+from rest_framework import generics, status,permissions
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.core.cache import cache
 from .models import Favorito, Comentario
 from .serializers import FavoritoSerializer, ComentarioSerializer
 
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
+def health_check(request):
+    """
+    Health check endpoint para el servicio de interacción.
+    Verifica el estado del servicio y la conexión a la base de datos SQLite.
+    """
+    checks = {}
+    is_healthy = True
+
+    try:
+        # Intentar obtener un favorito de prueba para verificar la conexión a la base de datos
+        Favorito.objects.first()
+        checks['database'] = {
+            'status': 'healthy',
+            'detail': 'Conexion a la base de datos exitosa'
+        }
+    except Exception as e:
+        is_healthy = False
+        checks['database'] = {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
+
+    status_code = 200 if is_healthy else 503
+    return JsonResponse({
+        'service': 'interaction_service',
+        'status': 'healthy' if is_healthy else 'unhealthy',
+        'checks': checks
+    }, status=status_code)
 
 class FavoritoView(generics.GenericAPIView):
     """

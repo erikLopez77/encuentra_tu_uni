@@ -1,15 +1,100 @@
 
+import os
+import pika
+from django.db import connection
+from django.http import JsonResponse
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.core.cache import cache
 from django.contrib.auth import update_session_auth_hash, logout
-from .models import  Perfil
-from .serializers import  PerfilSerializer, RegisterSerializer
+from .models import Perfil
+from .serializers import PerfilSerializer, RegisterSerializer
 from .rabbit import publicar_evento
 from django.contrib.auth.models import User
-# Create your views here.
+
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([permissions.AllowAny])
+def health_check(request):
+    """
+    Health check endpoint para el servicio de autenticación y usuarios.
+    Verifica:
+      - Conexión a la base de datos SQLite
+      - Conexión y operaciones básicas con Redis (sesiones/caché)
+      - Conexión con el broker de RabbitMQ
+    """
+    checks = {}
+    is_healthy = True
+
+    # 1. Base de datos
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+        checks['database'] = {
+            'status': 'healthy',
+            'detail': 'Conexion a la base de datos exitosa'
+        }
+    except Exception as e:
+        is_healthy = False
+        checks['database'] = {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
+
+    # 2. Redis
+    try:
+        test_key = '__health_ping__'
+        cache.set(test_key, 'pong', timeout=10)
+        val = cache.get(test_key)
+        if val == 'pong':
+            checks['redis'] = {
+                'status': 'healthy',
+                'detail': 'Conexión a Redis exitosa'
+            }
+        else:
+            is_healthy = False
+            checks['redis'] = {
+                'status': 'unhealthy',
+                'error': 'Redis no devolvió el valor esperado'
+            }
+    except Exception as e:
+        is_healthy = False
+        checks['redis'] = {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
+
+    # 3. RabbitMQ
+    try:
+        rabbitmq_url = os.environ.get('RABBITMQ_URL', 'amqp://encuentra:encuentra123@localhost:5672/')
+        params = pika.URLParameters(rabbitmq_url)
+        params.socket_timeout = 2
+        conn = pika.BlockingConnection(params)
+        conn.close()
+        checks['rabbitmq'] = {
+            'status': 'healthy',
+            'detail': 'Conexión a RabbitMQ exitosa'
+        }
+    except Exception as e:
+        is_healthy = False
+        checks['rabbitmq'] = {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
+
+    status_code = 200 if is_healthy else 503
+    return JsonResponse({
+        'service': 'auth_service',
+        'status': 'healthy' if is_healthy else 'unhealthy',
+        'timestamp': timezone.now().isoformat(),
+        'checks': checks
+    }, status=status_code)
+
 class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PerfilSerializer
     permission_classes = [permissions.AllowAny]  # Permite que cualquier usuario autenticado acceda

@@ -13,7 +13,7 @@ jobs:
   # Job 1: Auth Service
   # ---------------------------------------------------------------------------
   auth-service-tests:
-    name: "🔐 Auth Service"
+    name: " Auth Service"
     runs-on: ubuntu-latest
 
     defaults:
@@ -55,7 +55,7 @@ jobs:
   # Job 2: Interaction Service
   # ---------------------------------------------------------------------------
   interaction-service-tests:
-    name: "💬 Interaction Service"
+    name: " Interaction Service"
     runs-on: ubuntu-latest
 
     defaults:
@@ -95,7 +95,7 @@ jobs:
   # Job 3: University Service
   # ---------------------------------------------------------------------------
   university-service-tests:
-    name: "🎓 University Service"
+    name: " University Service"
     runs-on: ubuntu-latest
 
     defaults:

@@ -94,6 +94,26 @@ DATABASES = {
     }
 }
 
+# ---------------------------------------------------------------------------
+# Configuración JWT (debe coincidir con auth_service para validar tokens)
+# ---------------------------------------------------------------------------
+SIMPLE_JWT = {
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'ALGORITHM': 'HS256',
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'ACCESS_TOKEN_LIFETIME_MINUTES': 60,
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+    ],
+}
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {

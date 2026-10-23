@@ -1,49 +1,14 @@
 from rest_framework import generics, permissions
-from rest_framework.decorators import api_view, permission_classes
-from django.db import connection
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.db.models import Case, When, Value, IntegerField
-from django.http import JsonResponse
-from django.utils import timezone
 from .models import Universidad
 from .serializers import UniversidadSerializer
-
-
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def health_check(request):
-    """
-    Health check endpoint para el servicio de universidades.
-    Verifica el estado del servicio y la conexión a la base de datos SQLite.
-    """
-    checks = {}
-    is_healthy = True
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1;")
-        checks['database'] = {
-            'status': 'healthy',
-            'detail': 'Conexion a la base de datos exitosa'
-        }
-    except Exception as e:
-        is_healthy = False
-        checks['database'] = {
-            'status': 'unhealthy',
-            'error': str(e)
-        }
-
-    status_code = 200 if is_healthy else 503
-    return JsonResponse({
-        'service': 'university_service',
-        'status': 'healthy' if is_healthy else 'unhealthy',
-        'timestamp': timezone.now().isoformat(),
-        'checks': checks
-    }, status=status_code)
 
 
 class UniversidadListView(generics.ListAPIView):
     serializer_class = UniversidadSerializer
     permission_classes = [permissions.AllowAny]
+    authentication_classes = [JWTAuthentication]
 
     def list(self, request, *args, **kwargs):
         # Al pedir favoritos (?ids=...) devolvemos la lista completa sin paginar,
@@ -89,3 +54,4 @@ class UniversidadDetailView(generics.RetrieveAPIView):
     queryset = Universidad.objects.all()
     serializer_class = UniversidadSerializer
     permission_classes = [permissions.AllowAny]
+    authentication_classes = [JWTAuthentication]

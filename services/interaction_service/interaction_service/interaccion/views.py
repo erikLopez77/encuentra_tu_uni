@@ -1,10 +1,11 @@
 
 from django.http import JsonResponse
 from django.utils import timezone
-from rest_framework import generics, status,permissions
+from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.core.cache import cache
 from .models import Favorito, Comentario
 from .serializers import FavoritoSerializer, ComentarioSerializer
@@ -51,13 +52,20 @@ class FavoritoView(generics.GenericAPIView):
     """
     queryset = Favorito.objects.all()
     serializer_class = FavoritoSerializer
+    authentication_classes = [JWTAuthentication]
 
     def get_user_id(self, request):
-        usuario_id = (
-            request.query_params.get('usuarioId')  or
-            (request.data.get('usuarioId') if hasattr(request, 'data') else None) or
-            (request.user.id if request.user.is_authenticated else None)
-        )
+        # 1. Header X-User-ID inyectado por el API Gateway (prioritario)
+        usuario_id = request.headers.get('X-User-ID')
+        # 2. Query parameter usuarioId (compatibilidad con llamadas directas)
+        if not usuario_id:
+            usuario_id = request.query_params.get('usuarioId')
+        # 3. Body data (POST/PATCH)
+        if not usuario_id and hasattr(request, 'data'):
+            usuario_id = request.data.get('usuarioId')
+        # 4. Usuario autenticado por JWT
+        if not usuario_id and hasattr(request, 'user') and request.user.is_authenticated:
+            usuario_id = request.user.id
         return int(usuario_id) if usuario_id else None
 
     def get(self, request, *args, **kwargs):
@@ -252,10 +260,14 @@ class ComentarioView(generics.GenericAPIView):
 
     def _actualizar_comentario(self, request, universidad_id):
         comentario_id = request.data.get('id') or request.query_params.get('id')
-        usuario_id = (
-            request.data.get('usuarioId') or
-            (request.user.id if request.user.is_authenticated else None)
-        )
+        # 1. Header X-User-ID del gateway
+        usuario_id = request.headers.get('X-User-ID')
+        # 2. Body data
+        if not usuario_id:
+            usuario_id = request.data.get('usuarioId')
+        # 3. Usuario autenticado por JWT
+        if not usuario_id and hasattr(request, 'user') and request.user.is_authenticated:
+            usuario_id = request.user.id
 
         filtro = {'universidadId': universidad_id}
         if comentario_id:
@@ -288,11 +300,14 @@ class ComentarioView(generics.GenericAPIView):
             request.data.get('id') or
             request.query_params.get('id')
         )
-        usuario_id = (
-            request.data.get('usuarioId') or
-            request.query_params.get('usuarioId') or
-            (request.user.id if request.user.is_authenticated else None)
-        )
+        # 1. Header X-User-ID del gateway
+        usuario_id = request.headers.get('X-User-ID')
+        # 2. Body data / query params
+        if not usuario_id:
+            usuario_id = request.data.get('usuarioId') or request.query_params.get('usuarioId')
+        # 3. Usuario autenticado por JWT
+        if not usuario_id and hasattr(request, 'user') and request.user.is_authenticated:
+            usuario_id = request.user.id
 
         filtro = {'universidadId': universidad_id}
         if comentario_id:

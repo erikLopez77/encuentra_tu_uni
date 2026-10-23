@@ -1,5 +1,8 @@
 services:
-  # Servicio de Redis centralizado
+  # ---------------------------------------------------------------------------
+  # Infraestructura compartida
+  # ---------------------------------------------------------------------------
+  # Servicio de Redis centralizado (caché y sesiones)
   redis:
     image: redis:latest
     container_name: redis-container
@@ -12,7 +15,6 @@ services:
       retries: 3
 
   # RabbitMQ: broker de mensajes para eventos entre microservicios
-  # (auth_service publica eventos; interaction_service los consume)
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq_container
@@ -20,8 +22,6 @@ services:
       - "5672:5672"    # AMQP
       - "15672:15672"  # Consola web de administración
     environment:
-      # Usuario propio: 'guest' solo acepta conexiones desde localhost,
-      # y los demás contenedores se conectan por red de Docker
       - RABBITMQ_DEFAULT_USER=encuentra
       - RABBITMQ_DEFAULT_PASS=encuentra123
     healthcheck:
@@ -30,14 +30,34 @@ services:
       timeout: 5s
       retries: 3
 
-  # 1. Auth Service (Puerto 8002)
+  # ---------------------------------------------------------------------------
+  # Microservicios Django
+  # ---------------------------------------------------------------------------
+  # 1. University Service (Puerto 8001)
+  university_service:
+    build:
+      context: ./services/university_service
+    container_name: university_service_container
+    command: sh -c "python university_service/manage.py migrate && python university_service/manage.py runserver 0.0.0.0:8001"
+    volumes:
+      - ./services/university_service:/app
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 2. Auth Service (Puerto 8002)
   auth_service:
-    #indicamos a Docker dónde buscar los archivos necesarios para construir la imagen
     build:
       context: ./services/auth_service
     container_name: auth_service_container
-    command: python auth_service/manage.py runserver 0.0.0.0:8002
-    #permite alojar /app/auth_service/manage.py, conecta nuestra pc al contenedor
+    command: sh -c "python auth_service/manage.py migrate && python auth_service/manage.py runserver 0.0.0.0:8002"
     volumes:
       - ./services/auth_service:/app
     ports:
@@ -55,39 +75,16 @@ services:
       retries: 3
       start_period: 10s
 
-  # 2. University Service (Puerto 8001)
-  university_service:
-    #indicamos a Docker dónde buscar los archivos necesarios para construir la imagen
-    build:
-      context: ./services/university_service
-    container_name: university_service_container
-    command: python university_service/manage.py runserver 0.0.0.0:8001
-    #permite alojar /app/auth_service/manage.py, conecta nuestra pc al contenedor
-    volumes:
-      - ./services/university_service:/app
-    ports:
-      - "8001:8001"
-    depends_on:
-      - redis
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health/').read()"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  # 3. Interaction Service (Puerto 8000)
+  # 3. Interaction Service (Puerto 8003)
   interaction_service:
-    #indicamos a Docker dónde buscar los archivos necesarios para construir la imagen
     build:
       context: ./services/interaction_service
     container_name: interaction_service_container
-    command: python interaction_service/manage.py runserver 0.0.0.0:8000
-    #permite alojar /app/auth_service/manage.py, conecta nuestra pc al contenedor
+    command: sh -c "python interaction_service/manage.py migrate && python interaction_service/manage.py runserver 0.0.0.0:8003"
     volumes:
       - ./services/interaction_service:/app
     ports:
-      - "8000:8000"
+      - "8003:8003"
     environment:
       - REDIS_LOCATION=redis://redis:6379/1
       - RABBITMQ_URL=amqp://encuentra:encuentra123@rabbitmq:5672/
@@ -95,13 +92,43 @@ services:
       - redis
       - rabbitmq
     healthcheck:
-      test: ["CMD", "python","-c","import urlib.request; urlib.request.urlopen('http://localhost:8000/api/v1/health/').read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/api/v1/health/').read()"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
 
-  # 4. Frontend React (Puerto 5173)
+  # ---------------------------------------------------------------------------
+  # API Gateway (punto de entrada único, puerto 8000)
+  # ---------------------------------------------------------------------------
+  api_gateway:
+    build:
+      context: ./services/api_gateway
+    container_name: api_gateway_container
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./services/api_gateway:/app
+    ports:
+      - "8000:8000"
+    environment:
+      # Los nombres de servicio son los hostnames dentro de la red de Docker
+      - AUTH_SERVICE_URL=http://auth_service:8002
+      - INTERACTION_SERVICE_URL=http://interaction_service:8003
+      - UNIVERSITY_SERVICE_URL=http://university_service:8001
+    depends_on:
+      - auth_service
+      - interaction_service
+      - university_service
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Frontend React (Puerto 5173)
+  # ---------------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
@@ -111,7 +138,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
     depends_on:
-      - auth_service
-      - university_service
-      - interaction_service
+      - api_gateway

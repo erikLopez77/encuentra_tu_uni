@@ -69,6 +69,7 @@ def token_obtain(request):
 
 
 @api_view(['GET'])
+@authentication_classes([JWTAuthentication])
 @permission_classes([permissions.IsAuthenticated])
 def token_verify_me(request):
     """

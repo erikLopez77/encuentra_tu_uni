@@ -26,7 +26,7 @@ class JWTAuthenticationMiddleware:
     def _is_public_path(self, path):
         """Determina si la ruta es pública (no requiere autenticación)."""
         for public in settings.PUBLIC_PATHS:
-            pattern = public.replace('<int:pk>', r'\\d+').replace('<path:subpath>', r'.*')
+            pattern = public.replace('<int:pk>', r'\d+').replace('<path:subpath>', r'.*')
             if re.match(f'^{pattern}$', path):
                 return True
         return False
@@ -35,7 +35,11 @@ class JWTAuthenticationMiddleware:
         path = request.path_info
 
         # Rutas públicas: sin validación de token
-        if self._is_public_path(path):
+        is_public_comments_read = (
+            request.method == 'GET'
+            and re.match(r'^/api/v1/universidades/\d+/comentarios/$', path)
+        )
+        if self._is_public_path(path) or is_public_comments_read:
             return self.get_response(request)
 
         # Extraer token del header Authorization: Bearer <token>
@@ -50,14 +54,12 @@ class JWTAuthenticationMiddleware:
 
         try:
             validated_token = self.jwt_auth.get_validated_token(token)
-            user = self.jwt_auth.get_user(validated_token)
+            user_id = validated_token.get('user_id')
+            if not user_id:
+                raise InvalidToken('Token has no user_id claim.')
 
-            # Guardar info del usuario en el request para las vistas proxy
-            request.gateway_user = {
-                'user_id': user.id,
-                'username': user.username,
-                'email': user.email,
-            }
+            # Microservices have separate user databases; propagate the signed user ID.
+            request.gateway_user = {'user_id': user_id}
 
         except (InvalidToken, TokenError) as e:
             logger.warning(f"Token inválido: {e}")

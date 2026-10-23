@@ -48,13 +48,14 @@ const RankingPage = () => {
       try {
         // Recuperamos el ID del usuario que guardaste durante el login
         const userId = localStorage.getItem('usuarioId'); // O el método que uses para pasarlo
-        
+
         if (!userId){
           console.log("No se encontró usuarioId en localStorage. Asegúrate de que el usuario esté logueado.",userId );
           return;
         }
         const res = await axios.get(`http://localhost:8000/api/v1/favoritos/?usuarioId=${userId}`, {
-          withCredentials: true
+          withCredentials: true,
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token') }
         });
         console.log("Datos de solicitud",res.data)
         // Asumiendo que res.data.favoritos es una lista de IDs: [1, 5, 10]
@@ -74,7 +75,7 @@ const RankingPage = () => {
     const fetchUnis = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8001/api/v1/universidades/?page=${pagActual}`, {
+        const response = await axios.get(`http://localhost:8000/api/v1/universidades/?page=${pagActual}`, {
           params: { estado, tipo: tipo || undefined }
         });
         setUnis(response.data.results);
@@ -114,6 +115,7 @@ const toggleFavorito = useCallback(async (uni) => {
       }, {
         withCredentials: true,
         headers: {
+          Authorization: 'Bearer ' + localStorage.getItem('access_token'),
           'X-CSRFToken': getCsrf()
         }
       });

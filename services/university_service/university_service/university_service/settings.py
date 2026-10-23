@@ -43,10 +43,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-x_ek&as!%hvj2gnuir%!pzo16our*3w)58j-=x)tj(&l7qya40'
 
+SIMPLE_JWT = {
+    'SIGNING_KEY': 'django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5',
+    'VERIFYING_KEY': None,
+    'ALGORITHM': 'HS256',
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition

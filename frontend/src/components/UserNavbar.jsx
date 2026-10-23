@@ -1,21 +1,14 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 const UserNavbar = () => {
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      // Llama al backend para destruir la sesión en el servidor
-      await axios.post('http://localhost:8002/api/v1/logout/');
-    } catch (error) {
-      // Aunque falle, igual redirigimos (por si la sesión ya expiró)
-      console.error('Error al cerrar sesión:', error);
-    } finally {
-      // Redirigir al home público siempre
-      navigate('/');
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('usuarioId');
+    navigate('/');
   };
 
   return (

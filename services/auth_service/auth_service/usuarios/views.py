@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.authentication import SessionAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.core.cache import cache
@@ -101,7 +101,7 @@ def health_check(request):
 class PerfilCreateDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PerfilSerializer
     permission_classes = [permissions.AllowAny]  # Permite que cualquier usuario autenticado acceda
-    authentication_classes = [SessionAuthentication] # Asegura que use sesiones
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request, *args, **kwargs):
         #  Si no hay sesión activa, respondemos 200 OK con un objeto indicando que no hay sesión

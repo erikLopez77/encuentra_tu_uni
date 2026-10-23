@@ -167,27 +167,34 @@ const PanelComentarios = ({ universidadId }) => {
 
   // Verificar si hay sesión activa
   useEffect(() => {
+    let vigente = true;
     const verificarSesion = async () => {
+      const token = localStorage.getItem('access_token');
+      // Los comentarios son públicos. Para visitantes no consultamos verify:
+      // el endpoint exige JWT y respondería 401 de forma esperada.
+      if (!token) return;
+
       try {
-        const res = await axios.get('http://localhost:8002/api/v1/perfil/');
+        const res = await axios.get('http://localhost:8000/api/v1/auth/token/verify/', {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        if (!vigente) return;
         // Si no hay sesión, el auth_service responde 200 con { isAuthenticated: false }
-        if (!res.data?.id) {
-          setSesionActiva(false);
+        if (!res.data?.user_id) {
           return;
         }
         setSesionActiva(true);
-        setUsuarioId(res.data.id);
+        setUsuarioId(res.data.user_id);
         // El interaction_service no resuelve el nombre (no comparte la sesión),
         // así que lo capturamos aquí y lo enviamos junto al comentario
-        setUsuarioNombre(
-          `${res.data.nombre || ''} ${res.data.apellidos || ''}`.trim()
-        );
+        setUsuarioNombre(res.data.nombre || res.data.username || 'Usuario');
       } catch {
-        setSesionActiva(false);
+        // El estado inicial ya es false; evita actualizarlo innecesariamente.
       }
     };
     verificarSesion();
     cargarComentarios();
+    return () => { vigente = false; };
   }, [cargarComentarios]);
 
   // Detectar si el usuario ya comentó
@@ -203,7 +210,7 @@ const PanelComentarios = ({ universidadId }) => {
         }
       }
     }
-  }, [comentarios, usuarioId]);
+  }, [comentarios, usuarioId, texto]);
 
   const handleEnviar = async (e) => {
     e.preventDefault();
@@ -218,11 +225,7 @@ const PanelComentarios = ({ universidadId }) => {
     setEnviando(true);
     setError('');
     try {
-      // ⚠️ La ruta debe ir contra el interaction_service (puerto 8000).
-      // axios.defaults.baseURL apunta al auth_service (8002), por eso una URL
-      // relativa manda el POST al servicio equivocado y responde 404.
-      // También enviamos usuarioId: el interaction_service no comparte la
-      // sesión del auth_service, así que el ID debe viajar en el body.
+      // El gateway valida el token y reenvía X-User-ID a interaction_service.
       await axios.post(`http://localhost:8000/api/v1/universidades/${universidadId}/comentarios/`, {
         texto: texto.trim(),
         calificacion,
@@ -231,7 +234,7 @@ const PanelComentarios = ({ universidadId }) => {
       },
         {
           withCredentials: true,
-          headers: { 'X-CSRFToken': getCsrf() }
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token'), 'X-CSRFToken': getCsrf() }
         });
       await cargarComentarios();
       setYaComento(true);
@@ -255,6 +258,7 @@ const PanelComentarios = ({ universidadId }) => {
     try {
       await axios.delete(`http://localhost:8000/api/v1/universidades/${universidadId}/comentarios/`, {
         params: { id: comentario.id, usuarioId },
+        headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token') },
       });
       // Si eliminaste la tuya, limpia el formulario para que puedas escribir otra
       if (comentario.autor_id === usuarioId) {
@@ -446,7 +450,7 @@ const UniversidadDetalle = () => {
   useEffect(() => {
     const getDetalle = async () => {
       try {
-        const res = await axios.get(`http://localhost:8001/api/v1/universidades/${id}/`);
+        const res = await axios.get(`http://localhost:8000/api/v1/universidades/${id}/`);
 
         let texto = res.data.descripcion_ia || '';
         texto = texto.replace(/\\n/g, '\n');

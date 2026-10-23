@@ -52,7 +52,7 @@ const CreateProfile = () => {
         // 4. Petición al Backend
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:8002/api/v1/register/', { // Ajusta tu URL
+            const response = await fetch('http://localhost:8000/api/v1/auth/register/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -41,7 +41,7 @@ const RetriveAccount = () => {
         setLoading(true); // Solo activamos loading si pasó las pruebas locales
 
         try {
-            const res = await axios.post("http://localhost:8002/api/v1/retrieve/", {
+            const res = await axios.post("http://localhost:8000/api/v1/auth/retrieve/", {
                 email: email,
                 password: password,
             }, {

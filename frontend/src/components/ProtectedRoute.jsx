@@ -10,16 +10,26 @@ import axios from 'axios';
  *  - con sesión: renderiza la ruta hija (Outlet).
  */
 const ProtectedRoute = () => {
-  const [estado, setEstado] = useState('cargando'); // 'cargando' | 'auth' | 'unauth'
+  // Si no hay token, la ruta ya puede resolverse como no autenticada en el
+  // primer render. Así no hace falta cambiar estado sincrónicamente en el efecto.
+  const [estado, setEstado] = useState(() => (
+    localStorage.getItem('access_token') ? 'cargando' : 'unauth'
+  )); // 'cargando' | 'auth' | 'unauth'
 
   useEffect(() => {
     let vigente = true;
-    axios.get('/api/v1/perfil/')
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      return () => { vigente = false; };
+    }
+    axios.get('/api/v1/auth/token/verify/', {
+      headers: { Authorization: 'Bearer ' + token },
+    })
       .then((res) => {
         if (!vigente) return;
         // El auth_service responde 200 con { isAuthenticated: false } si no hay
         // sesión; con sesión devuelve el perfil (con id). Usamos id como señal.
-        setEstado(res.data?.id ? 'auth' : 'unauth');
+        setEstado(res.data?.user_id ? 'auth' : 'unauth');
       })
       .catch(() => { if (vigente) setEstado('unauth'); });
     return () => { vigente = false; };

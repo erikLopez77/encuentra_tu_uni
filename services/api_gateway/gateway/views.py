@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 logger = logging.getLogger(__name__)
 
 
-def _forward_request(request, service_url, path_prefix=''):
+def _forward_request(request, service_url, path_prefix='', upstream_prefix=None):
     """
     Reenvía la petición al servicio indicado.
 
@@ -25,17 +25,18 @@ def _forward_request(request, service_url, path_prefix=''):
     # Construir la ruta destino: quitar el prefijo del gateway y dejar el resto
     full_path = request.get_full_path()  # incluye query string
 
-    # Quitar el prefijo que coincide con la ruta del gateway
+    # Map the public prefix to the path expected by the microservice.
     target_path = full_path
-    if path_prefix and full_path.startswith(path_prefix.rstrip('/') + '/'):
-        target_path = full_path[len(path_prefix.rstrip('/')):]
-    elif path_prefix and full_path == path_prefix.rstrip('/'):
-        target_path = '/'
+    if path_prefix and full_path.startswith(path_prefix):
+        suffix = full_path[len(path_prefix):]
+        target_path = (upstream_prefix if upstream_prefix is not None else path_prefix) + suffix
 
     target_url = service_url.rstrip('/') + target_path
 
     # Preparar headers: reenviar Authorization y Content-Type, inyectar X-User-ID/Email
-    headers = {}
+    # Docker service names use underscores, which Django rejects as HTTP_HOST.
+    # The URL still targets the Docker hostname; this is only the Host header.
+    headers = {'Host': 'localhost'}
     if 'Authorization' in request.headers:
         headers['Authorization'] = request.headers['Authorization']
     if 'Content-Type' in request.headers:
@@ -57,7 +58,6 @@ def _forward_request(request, service_url, path_prefix=''):
             url=target_url,
             headers=headers,
             data=body,
-            params=request.GET,
             timeout=30,
             allow_redirects=False,
         )
@@ -77,7 +77,7 @@ def _forward_request(request, service_url, path_prefix=''):
         )
 
     # Devolver la respuesta del microservicio al cliente
-    excluded_headers = {'content-encoding', 'transfer-encoding', 'connection'}
+    excluded_headers = {'content-type', 'content-encoding', 'transfer-encoding', 'connection'}
     response_headers = [
         (k, v) for k, v in resp.headers.items()
         if k.lower() not in excluded_headers
@@ -108,6 +108,7 @@ def proxy_to_auth(request, subpath=''):
         request,
         settings.SERVICE_URLS['auth'],
         path_prefix='/api/v1/auth/',
+        upstream_prefix='/api/v1/',
     )
 
 
@@ -118,6 +119,7 @@ def proxy_to_interaction(request, subpath=''):
         request,
         settings.SERVICE_URLS['interaction'],
         path_prefix='/api/v1/favoritos/',
+        upstream_prefix='/api/v1/favoritos/',
     )
 
 
@@ -128,4 +130,5 @@ def proxy_to_university(request, subpath=''):
         request,
         settings.SERVICE_URLS['university'],
         path_prefix='/api/v1/universidades/',
+        upstream_prefix='/api/v1/universidades/',
     )

@@ -29,3 +29,6 @@ Thumbs.db
 
 # Caché de Vite
 frontend/.vite/
+
+# Base de datos local de sesiones administrativas del API Gateway
+services/api_gateway/db_api_gateway.sqlite3

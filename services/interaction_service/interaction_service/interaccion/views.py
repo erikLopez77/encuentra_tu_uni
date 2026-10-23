@@ -5,7 +5,7 @@ from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.authentication import JWTStatelessUserAuthentication
 from django.core.cache import cache
 from .models import Favorito, Comentario
 from .serializers import FavoritoSerializer, ComentarioSerializer
@@ -52,7 +52,7 @@ class FavoritoView(generics.GenericAPIView):
     """
     queryset = Favorito.objects.all()
     serializer_class = FavoritoSerializer
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [JWTStatelessUserAuthentication]
 
     def get_user_id(self, request):
         # 1. Header X-User-ID inyectado por el API Gateway (prioritario)

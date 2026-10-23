@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 
-const API = 'http://localhost:8000/api/v1';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 const MisFavPage = () => {
     const [unis, setUnis] = useState([]);
@@ -16,6 +16,26 @@ const MisFavPage = () => {
     const authHeaders = () => {
         const token = getToken();
         return token ? { Authorization: 'Bearer ' + token } : {};
+    };
+    const quitarFavorito = async (uni) => {
+        setQuitando(uni.id);
+        try {
+            await axios.delete(API + '/favoritos/', {
+                params: { universidadId: uni.id },
+                headers: authHeaders(),
+            });
+            setIds((actuales) => actuales.filter((id) => id !== uni.id));
+            setUnis((actuales) => actuales.filter((universidad) => universidad.id !== uni.id));
+            setToast('Universidad eliminada de favoritos');
+            window.setTimeout(() => setToast(''), 2500);
+        } catch (err) {
+            console.error('Error quitando favorito:', err);
+            setError(err.response?.status === 401 || err.response?.status === 403
+                ? 'Tu sesión expiró o el token es inválido. Inicia sesión de nuevo.'
+                : 'No se pudo quitar la universidad de favoritos. Intenta de nuevo.');
+        } finally {
+            setQuitando(null);
+        }
     };
     useEffect(() => {
         document.title = 'Mis Favoritos | EncuentraTuFuturo';
@@ -114,7 +134,7 @@ const MisFavPage = () => {
                                     <div className="flex-1 p-5 sm:p-6 flex flex-col justify-between">
                                         <div>
                                             <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-                                                <Link to=("/universidad/" + uni.id) className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors leading-tight hover:underline">{uni.nombre}</Link>
+                                                <Link to={"/universidad/" + uni.id} className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors leading-tight hover:underline">{uni.nombre}</Link>
                                                 <span className={"flex-shrink-0 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg " + (uni.tipo === 'PUB' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700')}>{uni.tipo === 'PUB' ? '🏛 PÚBLICA' : '🎓 PRIVADA'}</span>
                                             </div>
                                             <div className="flex items-center text-gray-500 text-sm mb-4"><span className="mr-1.5">📍</span>{uni.ciudad}, {uni.estado}</div>
@@ -125,7 +145,7 @@ const MisFavPage = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-50">
-                                            <Link to=("/universidad/" + uni.id) className="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1 transition-colors">Ver perfil completo →</Link>
+                                            <Link to={"/universidad/" + uni.id} className="text-blue-600 hover:text-blue-800 text-sm font-bold flex items-center gap-1 transition-colors">Ver perfil completo →</Link>
                                             <button onClick={() => quitarFavorito(uni)} disabled={quitando === uni.id} className={"flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border border-red-200 text-red-500 bg-red-50 hover:bg-red-500 hover:text-white transition-all duration-200 " + (quitando === uni.id ? 'disabled:opacity-50 disabled:cursor-not-allowed' : '')}>
                                                 {quitando === uni.id ? <span className="animate-spin">⏳</span> : <span>🗑</span>}{quitando === uni.id ? ' Quitando...' : ' Quitar'}
                                             </button>

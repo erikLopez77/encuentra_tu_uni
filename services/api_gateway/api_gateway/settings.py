@@ -80,7 +80,7 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors',
+                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
@@ -98,7 +98,7 @@ DATABASES = {
 
 # Configuración JWT - debe coincidir con auth_service para validar tokens
 SIMPLE_JWT = {
-    'SIGNING_KEY': SECRET_KEY,
+    'SIGNING_KEY': 'django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5',
     'VERIFYING_KEY': None,
     'ALGORITHM': 'HS256',
     'AUTH_HEADER_TYPES': ('Bearer',),
@@ -115,10 +115,11 @@ SERVICE_URLS = {
 # Rutas públicas que no requieren autenticación
 PUBLIC_PATHS = [
     '/api/v1/auth/register/',
+    '/api/v1/auth/retrieve/',
     '/api/v1/auth/soap_login/',
-    '/api/v1/token/',
-    '/api/v1/token/refresh/',
-    '/api/v1/token/verify/',
+    '/api/v1/auth/token/',
+    '/api/v1/auth/token/refresh/',
+    '/api/v1/auth/token/verify/',
     '/api/v1/universidades/',          # listado público de universidades
     '/api/v1/universidades/<int:pk>/', # detalle público de una universidad
     '/health/',

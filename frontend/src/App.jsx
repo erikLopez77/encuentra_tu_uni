@@ -24,7 +24,7 @@ import PerfilPage from './pages/PerfilPage';
 axios.defaults.withCredentials = true;
 axios.defaults.xsrfCookieName = 'csrftoken';
 axios.defaults.xsrfHeaderName = 'X-CSRFToken';
-axios.defaults.baseURL = 'http://localhost:8002';
+axios.defaults.baseURL = 'http://localhost:8000';
 
 // Layout para rutas exclusivamente autenticadas (dashboard, perfil, etc.)
 const AuthLayout = () => (
@@ -44,16 +44,22 @@ const SmartLayout = () => {
   const [isAuth, setIsAuth] = useState(false);
 
   useEffect(() => {
-    axios.get('/api/v1/perfil/')
-      .then((res) => {
-        // Si el backend responde con nuestro objeto de control, no hay sesión
-        if (res.data && res.data.isAuthenticated === false) {
-          setIsAuth(false);
-        } else {
-          setIsAuth(true); // Si devuelve los datos del perfil, sí hay sesión
-        }
+    const checkAuth = () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setIsAuth(false);
+        return;
+      }
+      axios.get('/api/v1/auth/token/verify/', {
+        headers: { Authorization: 'Bearer ' + token },
       })
-      .catch(() => setIsAuth(false));
+        .then((res) => setIsAuth(Boolean(res.data?.user_id)))
+        .catch(() => setIsAuth(false));
+    };
+
+    checkAuth();
+    window.addEventListener('auth-change', checkAuth);
+    return () => window.removeEventListener('auth-change', checkAuth);
   }, []);
 
   return (

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 const Login = () => {
     const backgroundUrl = "https://images.unsplash.com/photo-1568667256549-094345857637?q=80&w=2000&auto=format&fit=crop";
 
@@ -38,7 +40,7 @@ const Login = () => {
 </soap11env:Envelope>`;
 
         try {
-            const response = await fetch('http://localhost:8002/api/v1/soap_login/', {
+            const response = await fetch(API + '/auth/soap_login/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'text/xml',
@@ -53,7 +55,7 @@ const Login = () => {
                 // Extraer el resultado de la etiqueta SOAP
                 const matchResult = textResponse.match(/<tns:authenticate_userResult>(.*?)<\/tns:authenticate_userResult>/) || textResponse.match(/<authenticate_userResult>(.*?)<\/authenticate_userResult>/);
                 const resultText = matchResult ? matchResult[1] : '';
-                
+
                 // Obtener el ID del usuario (ejemplo: "SUCCESS:5" -> id = 5)
                 let userId = null;
                 if (resultText.startsWith("SUCCESS")) {
@@ -65,13 +67,28 @@ const Login = () => {
                     }
                 }
 
+                const tokenResponse = await fetch(API + '/auth/token/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: email, password }),
+                });
+                const tokenData = await tokenResponse.json();
+                if (!tokenResponse.ok) {
+                    setError(tokenData.error || 'No se pudo crear la sesión segura.');
+                    return;
+                }
+                localStorage.setItem('access_token', tokenData.access);
+                localStorage.setItem('refresh_token', tokenData.refresh);
+                localStorage.setItem('usuarioId', String(tokenData.user_id || userId));
+                window.dispatchEvent(new Event('auth-change'));
+
                 navigate('/dashboard');
 
                 // Hacer la petición a favoritos pasando el usuarioId explícitamente
                 if (userId) {
-                    const res = await fetch(`http://localhost:8000/api/v1/favoritos/?usuarioId=${userId}`, {
+                    const res = await fetch(API + '/favoritos/?usuarioId=' + userId, {
                         method: 'GET',
-                        credentials: 'include'
+                        headers: { Authorization: 'Bearer ' + tokenData.access }
                     });
 
                     const contentType = res.headers.get("content-type");

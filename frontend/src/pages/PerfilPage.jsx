@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API = 'http://localhost:8002/api/v1';
+const API = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1') + '/auth';
 // Lee el token CSRF de la cookie que Django pone al hacer GET /api/perfil/
 const getCsrf = () => {
     const match = document.cookie.match(/csrftoken_perfil=([^;]+)/);
@@ -28,7 +28,7 @@ const PerfilPage = () => {
 
     const fetchUserData = async () => {
         try {
-            const res = await axios.get(`${API}/perfil/`, { withCredentials: true });
+            const res = await axios.get(`${API}/token/verify/`, { headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token') } });
             // Verificamos que la respuesta traiga los datos esperados antes de actualizar el estado
             if (res.data && res.data.email) {
                 setUser({
@@ -61,7 +61,7 @@ const PerfilPage = () => {
                 { [campoParaBackend]: valor }, // Enviamos la llave que Django espera
                 {
                     withCredentials: true,
-                    headers: { 'X-CSRFToken': getCsrf() }
+                    headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token'), 'X-CSRFToken': getCsrf() }
                 });
 
             // Actualizamos el estado local de la UI
@@ -110,7 +110,7 @@ const PerfilPage = () => {
                 { password: passwords.nueva },
                 {
                     withCredentials: true,
-                    headers: { 'X-CSRFToken': getCsrf() }
+                    headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token'), 'X-CSRFToken': getCsrf() }
                 }
             );
 

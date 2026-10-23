@@ -98,7 +98,7 @@ DATABASES = {
 # Configuración JWT (debe coincidir con auth_service para validar tokens)
 # ---------------------------------------------------------------------------
 SIMPLE_JWT = {
-    'SIGNING_KEY': SECRET_KEY,
+    'SIGNING_KEY': 'django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5',
     'VERIFYING_KEY': None,
     'ALGORITHM': 'HS256',
     'AUTH_HEADER_TYPES': ('Bearer',),
@@ -107,7 +107,7 @@ SIMPLE_JWT = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTStatelessUserAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
@@ -201,4 +201,4 @@ LOGGING = {
             'propagate': False,
         },
     },
-}
+}

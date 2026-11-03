@@ -9,6 +9,8 @@ https://docs.djangoproject.com/en/6.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
+import os
+
 CORS_ALLOW_CREDENTIALS = True  # Necesario para que el navegador envíe/reciba cookies de sesión
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
@@ -111,7 +113,9 @@ REST_FRAMEWORK = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_university_service.sqlite3',
+        'NAME': os.environ.get(
+            'SQLITE_DB_PATH', str(BASE_DIR / 'db_university_service.sqlite3')
+        ),
     }
 }
 

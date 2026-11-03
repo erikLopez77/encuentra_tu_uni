@@ -1,0 +1,751 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: encuentra-tu-uni
+data:
+  REDIS_LOCATION: redis://redis:6379/1
+  AUTH_SERVICE_URL: http://auth-service:8002
+  INTERACTION_SERVICE_URL: http://interaction-service:8003
+  UNIVERSITY_SERVICE_URL: http://university-service:8001
+  FRONTEND_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+  VITE_API_URL: http://localhost:8000/api/v1
+  DJANGO_DEBUG: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: encuentra-tu-uni
+type: Opaque
+stringData:
+  RABBITMQ_DEFAULT_USER: encuentra
+  RABBITMQ_DEFAULT_PASS: encuentra123
+  RABBITMQ_URL: amqp://encuentra:encuentra123@rabbitmq:5672/
+  DJANGO_SECRET_KEY: django-insecure-g-sopy5-local-development-only
+  JWT_SIGNING_KEY: "django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  namespace: encuentra-tu-uni
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: api-gateway-data
+  namespace: encuentra-tu-uni
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: auth-service-data
+  namespace: encuentra-tu-uni
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: interaction-service-data
+  namespace: encuentra-tu-uni
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: university-service-data
+  namespace: encuentra-tu-uni
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: encuentra-tu-uni
+spec:
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: encuentra-tu-uni
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          startupProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 15
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: redis-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: encuentra-tu-uni
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace: encuentra-tu-uni
+spec:
+  serviceName: rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: management
+              containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: RABBITMQ_DEFAULT_USER
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: RABBITMQ_DEFAULT_PASS
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+          startupProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_running"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_running"]
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 700m
+              memory: 768Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: university-service
+  namespace: encuentra-tu-uni
+spec:
+  selector:
+    app: university-service
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: university-service
+  namespace: encuentra-tu-uni
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: university-service
+  template:
+    metadata:
+      labels:
+        app: university-service
+    spec:
+      initContainers:
+        - name: initialize-sqlite
+          image: encuentra_tu_uni-university_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-c"]
+          args:
+            - >-
+              import os, shutil;
+              src='/app/university_service/db_university_service.sqlite3';
+              dst='/var/lib/encuentra/db.sqlite3';
+              os.makedirs(os.path.dirname(dst), exist_ok=True);
+              shutil.copy2(src, dst) if os.path.isfile(src) and not os.path.exists(dst) else None
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+      containers:
+        - name: university-service
+          image: encuentra_tu_uni-university_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - python university_service/manage.py migrate && exec python university_service/manage.py runserver 0.0.0.0:8001
+          ports:
+            - name: http
+              containerPort: 8001
+          env:
+            - name: SQLITE_DB_PATH
+              value: /var/lib/encuentra/db.sqlite3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+          startupProbe:
+            httpGet:
+              path: /api/v1/health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: university-service-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: encuentra-tu-uni
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - name: http
+      port: 8002
+      targetPort: 8002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: encuentra-tu-uni
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      initContainers:
+        - name: initialize-sqlite
+          image: encuentra_tu_uni-auth_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-c"]
+          args:
+            - >-
+              import os, shutil;
+              src='/app/auth_service/db_auth_service.sqlite3';
+              dst='/var/lib/encuentra/db.sqlite3';
+              os.makedirs(os.path.dirname(dst), exist_ok=True);
+              shutil.copy2(src, dst) if os.path.isfile(src) and not os.path.exists(dst) else None
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+      containers:
+        - name: auth-service
+          image: encuentra_tu_uni-auth_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - python auth_service/manage.py migrate && exec python auth_service/manage.py runserver 0.0.0.0:8002
+          ports:
+            - name: http
+              containerPort: 8002
+          env:
+            - name: SQLITE_DB_PATH
+              value: /var/lib/encuentra/db.sqlite3
+            - name: REDIS_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REDIS_LOCATION
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: RABBITMQ_URL
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DJANGO_SECRET_KEY
+            - name: JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_SIGNING_KEY
+            - name: FRONTEND_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: FRONTEND_ORIGINS
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+          startupProbe:
+            httpGet:
+              path: /api/v1/health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: auth-service-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: interaction-service
+  namespace: encuentra-tu-uni
+spec:
+  selector:
+    app: interaction-service
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: interaction-service
+  namespace: encuentra-tu-uni
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: interaction-service
+  template:
+    metadata:
+      labels:
+        app: interaction-service
+    spec:
+      initContainers:
+        - name: initialize-sqlite
+          image: encuentra_tu_uni-interaction_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-c"]
+          args:
+            - >-
+              import os, shutil;
+              src='/app/interaction_service/db_interaction_service.sqlite3';
+              dst='/var/lib/encuentra/db.sqlite3';
+              os.makedirs(os.path.dirname(dst), exist_ok=True);
+              shutil.copy2(src, dst) if os.path.isfile(src) and not os.path.exists(dst) else None
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+      containers:
+        - name: interaction-service
+          image: encuentra_tu_uni-interaction_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - python interaction_service/manage.py migrate && exec python interaction_service/manage.py runserver 0.0.0.0:8003
+          ports:
+            - name: http
+              containerPort: 8003
+          env:
+            - name: SQLITE_DB_PATH
+              value: /var/lib/encuentra/db.sqlite3
+            - name: REDIS_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REDIS_LOCATION
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: RABBITMQ_URL
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+          startupProbe:
+            httpGet:
+              path: /api/v1/health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: interaction-service-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: encuentra-tu-uni
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: encuentra-tu-uni
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      initContainers:
+        - name: initialize-sqlite
+          image: encuentra_tu_uni-api_gateway:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-c"]
+          args:
+            - >-
+              import os, shutil;
+              src='/app/db_api_gateway.sqlite3';
+              dst='/var/lib/encuentra/db.sqlite3';
+              os.makedirs(os.path.dirname(dst), exist_ok=True);
+              shutil.copy2(src, dst) if os.path.isfile(src) and not os.path.exists(dst) else None
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+      containers:
+        - name: api-gateway
+          image: encuentra_tu_uni-api_gateway:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - python manage.py migrate && exec python manage.py runserver 0.0.0.0:8000
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: SQLITE_DB_PATH
+              value: /var/lib/encuentra/db.sqlite3
+            - name: AUTH_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: AUTH_SERVICE_URL
+            - name: INTERACTION_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: INTERACTION_SERVICE_URL
+            - name: UNIVERSITY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: UNIVERSITY_SERVICE_URL
+            - name: REDIS_LOCATION
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: REDIS_LOCATION
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DJANGO_DEBUG
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DJANGO_SECRET_KEY
+            - name: JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_SIGNING_KEY
+            - name: FRONTEND_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: FRONTEND_ORIGINS
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/encuentra
+          startupProbe:
+            httpGet:
+              path: /health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: api-gateway-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: encuentra-tu-uni
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 5173
+      targetPort: 5173
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: encuentra-tu-uni
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: encuentra_tu_uni-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5173
+          env:
+            - name: VITE_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: VITE_API_URL
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

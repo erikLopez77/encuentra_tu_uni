@@ -125,7 +125,9 @@ WSGI_APPLICATION = 'auth_service.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_auth_service.sqlite3',
+        'NAME': os.environ.get(
+            'SQLITE_DB_PATH', str(BASE_DIR / 'db_auth_service.sqlite3')
+        ),
     }
 }
 REST_FRAMEWORK = {

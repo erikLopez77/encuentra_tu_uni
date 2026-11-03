@@ -98,7 +98,9 @@ WSGI_APPLICATION = 'api_gateway.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_api_gateway.sqlite3',
+        'NAME': os.environ.get(
+            'SQLITE_DB_PATH', str(BASE_DIR / 'db_api_gateway.sqlite3')
+        ),
     }
 }
 

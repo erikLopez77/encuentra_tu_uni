@@ -5,6 +5,7 @@ from gateway import views as gateway_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('health/', gateway_views.health_check, name='health-check'),
+    path('api/v1/auth/csrf/', gateway_views.csrf_bootstrap, name='csrf-bootstrap'),
     # Proxy hacia auth_service (incluye /perfil/, /register/, /token/, etc.)
     path('api/v1/auth/', gateway_views.proxy_to_auth),
     path('api/v1/auth/<path:subpath>/', gateway_views.proxy_to_auth),

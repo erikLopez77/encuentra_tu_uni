@@ -4,10 +4,13 @@ services:
   # ---------------------------------------------------------------------------
   # Servicio de Redis centralizado (caché y sesiones)
   redis:
-    image: redis:latest
+    image: redis:7.4-alpine
     container_name: redis-container
     ports:
       - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -41,8 +44,6 @@ services:
     command: sh -c "python university_service/manage.py migrate && python university_service/manage.py runserver 0.0.0.0:8001"
     volumes:
       - ./services/university_service:/app
-    ports:
-      - "8001:8001"
     depends_on:
       - redis
     healthcheck:
@@ -60,8 +61,6 @@ services:
     command: sh -c "python auth_service/manage.py migrate && python auth_service/manage.py runserver 0.0.0.0:8002"
     volumes:
       - ./services/auth_service:/app
-    ports:
-      - "8002:8002"
     environment:
       - REDIS_LOCATION=redis://redis:6379/1
       - RABBITMQ_URL=amqp://encuentra:encuentra123@rabbitmq:5672/
@@ -83,8 +82,6 @@ services:
     command: sh -c "python interaction_service/manage.py migrate && python interaction_service/manage.py runserver 0.0.0.0:8003"
     volumes:
       - ./services/interaction_service:/app
-    ports:
-      - "8003:8003"
     environment:
       - REDIS_LOCATION=redis://redis:6379/1
       - RABBITMQ_URL=amqp://encuentra:encuentra123@rabbitmq:5672/
@@ -115,7 +112,9 @@ services:
       - AUTH_SERVICE_URL=http://auth_service:8002
       - INTERACTION_SERVICE_URL=http://interaction_service:8003
       - UNIVERSITY_SERVICE_URL=http://university_service:8001
+      - REDIS_LOCATION=redis://redis:6379/1
     depends_on:
+      - redis
       - auth_service
       - interaction_service
       - university_service
@@ -142,3 +141,6 @@ services:
       - VITE_API_URL=http://localhost:8000/api/v1
     depends_on:
       - api_gateway
+
+volumes:
+  redis_data:

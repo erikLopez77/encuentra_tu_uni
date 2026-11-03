@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
-import axios from 'axios';
 
 // Componentes
 import Navbar from './components/Navbar';
@@ -20,11 +19,8 @@ import RankingPage from './pages/RankingPage';
 import MisFavPage from './pages/MisFavPage';
 import PerfilPage from './pages/PerfilPage';
 
-// --- CONFIGURACIÓN GLOBAL DE AXIOS ---
-axios.defaults.withCredentials = true;
-axios.defaults.xsrfCookieName = 'csrftoken';
-axios.defaults.xsrfHeaderName = 'X-CSRFToken';
-axios.defaults.baseURL = 'http://localhost:8000';
+// --- CONFIGURACIÓN GLOBAL DE AXIOS CON REFRESH AUTOMÁTICO ---
+import { ensureCsrfCookie } from './api/axios';
 
 // Layout para rutas exclusivamente autenticadas (dashboard, perfil, etc.)
 const AuthLayout = () => (
@@ -41,25 +37,19 @@ const AuthLayout = () => (
 // Usado en rutas públicas que también deben mostrar el navbar de usuario
 // si ya se inició sesión (ej: /universidad/:id, /, /faqs).
 const SmartLayout = () => {
-  const [isAuth, setIsAuth] = useState(false);
+  const [isAuth, setIsAuth] = useState(() => Boolean(localStorage.getItem('usuarioId')));
 
   useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        setIsAuth(false);
-        return;
-      }
-      axios.get('/api/v1/auth/token/verify/', {
-        headers: { Authorization: 'Bearer ' + token },
-      })
-        .then((res) => setIsAuth(Boolean(res.data?.user_id)))
-        .catch(() => setIsAuth(false));
+    const syncAuthHint = () => setIsAuth(Boolean(localStorage.getItem('usuarioId')));
+    window.addEventListener('auth-change', syncAuthHint);
+    const handleStorage = (event) => {
+      if (event.key === 'usuarioId') syncAuthHint();
     };
-
-    checkAuth();
-    window.addEventListener('auth-change', checkAuth);
-    return () => window.removeEventListener('auth-change', checkAuth);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('auth-change', syncAuthHint);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   return (
@@ -74,6 +64,8 @@ const SmartLayout = () => {
 };
 
 function App() {
+  useEffect(() => { ensureCsrfCookie().catch(() => {}); }, []);
+
   return (
     <Router>
       <Routes>

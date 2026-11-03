@@ -12,17 +12,11 @@ const MisFavPage = () => {
     const [toast, setToast] = useState('');
     const [quitando, setQuitando] = useState(null);
 
-    const getToken = () => localStorage.getItem('access_token');
-    const authHeaders = () => {
-        const token = getToken();
-        return token ? { Authorization: 'Bearer ' + token } : {};
-    };
     const quitarFavorito = async (uni) => {
         setQuitando(uni.id);
         try {
             await axios.delete(API + '/favoritos/', {
                 params: { universidadId: uni.id },
-                headers: authHeaders(),
             });
             setIds((actuales) => actuales.filter((id) => id !== uni.id));
             setUnis((actuales) => actuales.filter((universidad) => universidad.id !== uni.id));
@@ -43,17 +37,11 @@ const MisFavPage = () => {
             setLoading(true);
             setError('');
             try {
-                const token = getToken();
-                if (!token) {
-                    setError('No se encontró token de sesión. Inicia sesión de nuevo.');
-                    setLoading(false);
-                    return;
-                }
-                const res = await axios.get(API + '/favoritos/', { headers: authHeaders() });
+                const res = await axios.get(API + '/favoritos/');
                 const favoritosIds = res.data.favoritos ?? [];
                 setIds(favoritosIds);
                 if (favoritosIds.length > 0) {
-                    const res2 = await axios.get(API + '/universidades/?ids=' + favoritosIds.join(','), { headers: authHeaders() });
+                    const res2 = await axios.get(API + '/universidades/?ids=' + favoritosIds.join(','));
                     const detalles = Array.isArray(res2.data) ? res2.data : (res2.data.results ?? res2.data.favoritos_detalles ?? []);
                     setUnis(detalles);
                 } else {

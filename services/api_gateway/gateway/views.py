@@ -8,14 +8,26 @@ Inyectan headers X-User-ID y X-User-Email cuando el usuario está autenticado.
 import logging
 
 import requests
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
 from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 logger = logging.getLogger(__name__)
 
 
-def _forward_request(request, service_url, path_prefix='', upstream_prefix=None):
+@ensure_csrf_cookie
+def csrf_bootstrap(request):
+    """Emite el CSRF vigente y retira cookies del monolito ya eliminado."""
+    response = JsonResponse({'csrfToken': get_token(request)})
+    # El Django antiguo usaba los nombres predeterminados. El gateway JWT ya
+    # usa csrftoken_auth; eliminar estos restos evita que persistan en localhost.
+    response.delete_cookie('csrftoken', path='/')
+    response.delete_cookie('sessionid', path='/')
+    return response
+
+
+def _forward_request(request, service_url, path_prefix='', upstream_prefix=None, forward_cookies=False):
     """
     Reenvía la petición al servicio indicado.
 
@@ -41,6 +53,13 @@ def _forward_request(request, service_url, path_prefix='', upstream_prefix=None)
         headers['Authorization'] = request.headers['Authorization']
     if 'Content-Type' in request.headers:
         headers['Content-Type'] = request.headers['Content-Type']
+    if 'X-CSRFToken' in request.headers:
+        headers['X-CSRFToken'] = request.headers['X-CSRFToken']
+    if forward_cookies and 'Cookie' in request.headers:
+        headers['Cookie'] = request.headers['Cookie']
+    gateway_token = getattr(request, 'gateway_access_token', None)
+    if gateway_token:
+        headers['Authorization'] = f'Bearer {gateway_token}'
 
     # Inyectar identidad del usuario si está disponible
     gateway_user = getattr(request, 'gateway_user', None)
@@ -77,21 +96,28 @@ def _forward_request(request, service_url, path_prefix='', upstream_prefix=None)
         )
 
     # Devolver la respuesta del microservicio al cliente
-    excluded_headers = {'content-type', 'content-encoding', 'transfer-encoding', 'connection'}
+    excluded_headers = {'content-type', 'content-encoding', 'transfer-encoding', 'connection', 'set-cookie'}
     response_headers = [
         (k, v) for k, v in resp.headers.items()
         if k.lower() not in excluded_headers
     ]
 
-    return HttpResponse(
+    response = HttpResponse(
         resp.content,
         status=resp.status_code,
         content_type=resp.headers.get('Content-Type', 'application/json'),
         headers=response_headers,
     )
+    # Preserve multiple Set-Cookie headers and attributes (HttpOnly, SameSite, Path).
+    raw_headers = getattr(getattr(resp, 'raw', None), 'headers', None)
+    set_cookie_headers = raw_headers.getlist('Set-Cookie') if raw_headers else []
+    if not set_cookie_headers and resp.headers.get('Set-Cookie'):
+        set_cookie_headers = [resp.headers['Set-Cookie']]
+    for cookie_header in set_cookie_headers:
+        response.cookies.load(cookie_header)
+    return response
 
 
-@csrf_exempt
 def health_check(request):
     """Health check del gateway."""
     return HttpResponse(
@@ -101,7 +127,6 @@ def health_check(request):
     )
 
 
-@csrf_exempt
 def proxy_to_auth(request, subpath=''):
     """Proxy hacia auth_service (login, register, perfil, token, etc.)."""
     return _forward_request(
@@ -109,10 +134,10 @@ def proxy_to_auth(request, subpath=''):
         settings.SERVICE_URLS['auth'],
         path_prefix='/api/v1/auth/',
         upstream_prefix='/api/v1/',
+        forward_cookies=True,
     )
 
 
-@csrf_exempt
 def proxy_to_interaction(request, subpath=''):
     """Proxy hacia interaction_service (favoritos, comentarios)."""
     return _forward_request(
@@ -123,7 +148,6 @@ def proxy_to_interaction(request, subpath=''):
     )
 
 
-@csrf_exempt
 def proxy_to_university(request, subpath=''):
     """Proxy hacia university_service (listado/detalle de universidades)."""
     return _forward_request(

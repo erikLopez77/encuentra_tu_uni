@@ -1,21 +1,23 @@
 import logging
 import os
-
 import pika
 from django.db import connection, transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from django.core.cache import cache
-from django.contrib.auth import update_session_auth_hash, logout
+from django.contrib.auth import update_session_auth_hash
 from .models import Perfil
 from .serializers import PerfilSerializer, RegisterSerializer
 from .rabbit import encolar_evento_outbox
 from django.contrib.auth.models import User
+from .jwt_cookies import ACCESS_COOKIE, REFRESH_COOKIE, clear_jwt_cookies
 
 logger = logging.getLogger(__name__)
 
@@ -256,15 +258,75 @@ class PasswordResetUpdateView(generics.GenericAPIView):
         )
 
 class LogoutView(APIView):
-    # Sin SessionAuthentication: así evitamos el requisito CSRF en el POST
-    # Es seguro porque el peor escenario de un CSRF-logout es que te deslogeen
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        # Eliminar caché del perfil antes de cerrar sesión
-        if request.user.is_authenticated:
-            cache.delete(f"perfil_user_{request.user.id}")
-        # Destruye la sesión en el servidor y borra la cookie sessionid
-        logout(request)
-        return Response({"message": "Sesión cerrada correctamente."}, status=status.HTTP_200_OK)
+        refresh_token = request.COOKIES.get(REFRESH_COOKIE)
+        access_token = request.COOKIES.get(ACCESS_COOKIE)
+        user_id = None
+
+        access = None
+        if access_token:
+            try:
+                access = AccessToken(access_token)
+                user_id = access.get('user_id')
+            except (TokenError, InvalidToken, KeyError):
+                # Si el access venció, el gateway ya no lo acepta por expiración.
+                access = None
+
+        refresh = None
+        if refresh_token:
+            try:
+                refresh = RefreshToken(refresh_token)
+                refresh_user_id = refresh.get('user_id')
+                if user_id is not None and str(refresh_user_id) != str(user_id):
+                    return Response({'error': 'Tokens de sesión inconsistentes.'}, status=status.HTTP_400_BAD_REQUEST)
+                user_id = refresh_user_id
+            except (TokenError, InvalidToken) as e:
+                # Expirado o ya rotado: no es renovable y puede tratarse como revocado.
+                logger.info("Refresh ya inválido durante logout: %s", e)
+
+        access_sid = access.get('sid') if access is not None else None
+        refresh_sid = refresh.get('sid') if refresh is not None else None
+        if access_sid and refresh_sid and access_sid != refresh_sid:
+            return Response({'error': 'Tokens de sesión inconsistentes.'}, status=status.HTTP_400_BAD_REQUEST)
+        session_id = refresh_sid or access_sid
+
+        # Una única marca de sesión en Redis invalida todos los access tokens
+        # emitidos para este login. Redis es obligatorio; ante caída se falla cerrado.
+        if session_id or access is not None:
+            try:
+                expiration = max(
+                    int(access['exp']) if access is not None else 0,
+                    int(refresh['exp']) if refresh is not None else 0,
+                )
+                remaining = max(1, expiration - int(timezone.now().timestamp()))
+                key = f'blacklisted_session_{session_id}' if session_id else f"blacklisted_jti_{access['jti']}"
+                cache.set(key, '1', timeout=remaining)
+            except Exception:
+                logger.exception('Redis no disponible; logout no completado.')
+                return Response(
+                    {'error': 'No se pudo completar el cierre de sesión. Intenta de nuevo.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+        # La blacklist durable de SimpleJWT impide reutilizar el refresh anterior.
+        if refresh is not None:
+            try:
+                refresh.blacklist()
+            except Exception:
+                logger.exception('La sesión fue revocada en Redis, pero falló la blacklist del refresh.')
+                return Response(
+                    {'error': 'La sesión fue cerrada, pero no se pudo confirmar el refresh. Vuelve a iniciar sesión.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+        if user_id is not None:
+            try:
+                cache.delete(f"perfil_user_{user_id}")
+            except Exception:
+                logger.warning('No se pudo limpiar la caché de perfil durante logout.', exc_info=True)
+
+        response = Response({"message": "Sesión cerrada correctamente."}, status=status.HTTP_200_OK)
+        return clear_jwt_cookies(response)

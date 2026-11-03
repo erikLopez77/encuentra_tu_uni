@@ -2,12 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 
-// Lee el token CSRF de la cookie que Django pone al hacer GET /api/perfil/
-const getCsrf = () => {
-  const match = document.cookie.match(/csrftoken=([^;]+)/);
-  return match ? match[1] : '';
-};
-
 // ── Filtro de contenido inapropiado (espejo del backend) ──────────────────
 const PALABRAS_PROHIBIDAS = [
   'pendejo','pendeja','pendejos','pendejas','pendejada','pendejadas',
@@ -169,15 +163,12 @@ const PanelComentarios = ({ universidadId }) => {
   useEffect(() => {
     let vigente = true;
     const verificarSesion = async () => {
-      const token = localStorage.getItem('access_token');
       // Los comentarios son públicos. Para visitantes no consultamos verify:
       // el endpoint exige JWT y respondería 401 de forma esperada.
-      if (!token) return;
+      if (!localStorage.getItem('usuarioId')) return;
 
       try {
-        const res = await axios.get('http://localhost:8000/api/v1/auth/token/verify/', {
-          headers: { Authorization: 'Bearer ' + token },
-        });
+        const res = await axios.get('http://localhost:8000/api/v1/auth/token/verify/');
         if (!vigente) return;
         // Si no hay sesión, el auth_service responde 200 con { isAuthenticated: false }
         if (!res.data?.user_id) {
@@ -234,7 +225,6 @@ const PanelComentarios = ({ universidadId }) => {
       },
         {
           withCredentials: true,
-          headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token'), 'X-CSRFToken': getCsrf() }
         });
       await cargarComentarios();
       setYaComento(true);
@@ -258,7 +248,6 @@ const PanelComentarios = ({ universidadId }) => {
     try {
       await axios.delete(`http://localhost:8000/api/v1/universidades/${universidadId}/comentarios/`, {
         params: { id: comentario.id, usuarioId },
-        headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token') },
       });
       // Si eliminaste la tuya, limpia el formulario para que puedas escribir otra
       if (comentario.autor_id === usuarioId) {

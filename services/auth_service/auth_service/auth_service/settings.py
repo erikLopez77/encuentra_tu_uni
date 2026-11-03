@@ -9,22 +9,25 @@ https://docs.djangoproject.com/en/6.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
+import os
+from datetime import timedelta
+from pathlib import Path
+
 CORS_ALLOW_CREDENTIALS = True  # Necesario para que el navegador envíe/reciba cookies de sesión
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+FRONTEND_ORIGINS = [
+    origin.strip() for origin in os.environ.get(
+        'FRONTEND_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173'
+    ).split(',') if origin.strip()
 ]
+CORS_ALLOWED_ORIGINS = FRONTEND_ORIGINS
 
 # ESTO ES LO QUE SUELE FALTAR:
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CSRF_TRUSTED_ORIGINS = FRONTEND_ORIGINS
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
     'authorization',
-    'content-type',  # Necesario para 'text/xml' de las peticiones SOAP
+    'content-type',
     'dnt',
     'origin',
     'user-agent',
@@ -36,21 +39,15 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 # En settings.py del microservicio de Perfil/Usuarios (Puerto 8002)
 SESSION_COOKIE_NAME = 'sessionid_perfil'
 CSRF_COOKIE_NAME = 'csrftoken_perfil'
+CSRF_COOKIE_HTTPONLY = True
 
 SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Asegurar que no se marquen como "Solo HTTPS" ya que estás en desarrollo (HTTP)
 SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
 
-# Asegúrate de que las cookies sean accesibles por Axios
-CSRF_COOKIE_HTTPONLY = False  # Permite que JS lea la cookie CSRF
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
-from pathlib import Path
-import os
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -59,10 +56,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
+AUTH_COOKIE_SECURE = os.environ.get('AUTH_COOKIE_SECURE', 'true' if not DEBUG else 'false').lower() == 'true'
+AUTH_COOKIE_SAMESITE = os.environ.get('AUTH_COOKIE_SAMESITE', 'Lax')
+CSRF_COOKIE_SECURE = AUTH_COOKIE_SECURE
+CSRF_COOKIE_SAMESITE = AUTH_COOKIE_SAMESITE
+SESSION_COOKIE_SECURE = AUTH_COOKIE_SECURE
+SESSION_COOKIE_SAMESITE = AUTH_COOKIE_SAMESITE
 
 ALLOWED_HOSTS = ['*']
 
@@ -77,6 +83,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'usuarios'
 ]
@@ -129,6 +136,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ]
+}
+
+# Configuración JWT - debe coincidir con api_gateway para validar tokens
+SIMPLE_JWT = {
+    'SIGNING_KEY': os.environ.get('JWT_SIGNING_KEY', SECRET_KEY),
+    'VERIFYING_KEY': None,
+    'ALGORITHM': 'HS256',
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # Password validation

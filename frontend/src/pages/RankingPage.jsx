@@ -12,11 +12,6 @@ const TIPOS = [
   { value: 'PRI', label: 'Privada' },
 ];
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-// Función para leer el token CSRF de las cookies
-const getCsrf = () => {
-    const match = document.cookie.match(/csrftoken=([^;]+)/);
-    return match ? match[1] : '';
-};
 const StarRating = ({ rating }) => {
   const stars = Math.round(rating);
   return (
@@ -55,7 +50,6 @@ const RankingPage = () => {
         }
         const res = await axios.get(`http://localhost:8000/api/v1/favoritos/?usuarioId=${userId}`, {
           withCredentials: true,
-          headers: { Authorization: 'Bearer ' + localStorage.getItem('access_token') }
         });
         console.log("Datos de solicitud",res.data)
         // Asumiendo que res.data.favoritos es una lista de IDs: [1, 5, 10]
@@ -112,12 +106,6 @@ const toggleFavorito = useCallback(async (uni) => {
       await axios.patch('http://localhost:8000/api/v1/favoritos/', {
         usuarioId: userId,            // <-- ¡Vital para que el backend sepa quién es!
         favoritos: nuevosFavoritosIds
-      }, {
-        withCredentials: true,
-        headers: {
-          Authorization: 'Bearer ' + localStorage.getItem('access_token'),
-          'X-CSRFToken': getCsrf()
-        }
       });
 
       setFavoritos(new Set(nuevosFavoritosIds));

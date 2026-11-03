@@ -3,6 +3,7 @@ middleware.py — API Gateway
 
 JWTAuthenticationMiddleware:
   - Valida Bearer Token (JWT) en rutas que requieren autenticación.
+  - Verifica que el JTI no esté en la blacklist de Redis (revocado por logout).
   - Extrae user_id y email y los guarda en request.gateway_user.
   - Los servicios downstream leen X-User-ID / X-User-Email inyectados por el gateway.
 """
@@ -12,6 +13,7 @@ import re
 
 from django.http import JsonResponse
 from django.conf import settings
+from django.core.cache import cache
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
@@ -42,15 +44,17 @@ class JWTAuthenticationMiddleware:
         if self._is_public_path(path) or is_public_comments_read:
             return self.get_response(request)
 
-        # Extraer token del header Authorization: Bearer <token>
+        # En navegador, el access viaja en cookie HttpOnly. Se mantiene Bearer
+        # como compatibilidad para clientes de servicio a servicio.
         auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
+        token = request.COOKIES.get('access_token')
+        if not token and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ', 1)[1]
+        if not token:
             return JsonResponse(
-                {'error': 'Se requiere Authorization: Bearer <token>.'},
+                {'error': 'Se requiere una sesión válida.'},
                 status=401,
             )
-
-        token = auth_header.split(' ', 1)[1]
 
         try:
             validated_token = self.jwt_auth.get_validated_token(token)
@@ -58,8 +62,28 @@ class JWTAuthenticationMiddleware:
             if not user_id:
                 raise InvalidToken('Token has no user_id claim.')
 
+            # Revoca la sesión completa al cerrar sesión; JTI cubre tokens antiguos sin sid.
+            jti = validated_token.get('jti')
+            session_id = validated_token.get('sid')
+            if jti or session_id:
+                try:
+                    revoked = (
+                        cache.get(f'blacklisted_session_{session_id}')
+                        if session_id else cache.get(f'blacklisted_jti_{jti}')
+                    )
+                except Exception:
+                    logger.exception('Redis no disponible; se rechaza la autenticación.')
+                    return JsonResponse(
+                        {'error': 'Servicio de sesión temporalmente no disponible.'},
+                        status=503,
+                    )
+                if revoked:
+                    logger.warning("Sesión revocada | user_id=%s | sid=%s", user_id, session_id)
+                    return JsonResponse({'error': 'Sesión revocada. Inicia sesión nuevamente.'}, status=401)
+
             # Microservices have separate user databases; propagate the signed user ID.
             request.gateway_user = {'user_id': user_id}
+            request.gateway_access_token = token
 
         except (InvalidToken, TokenError) as e:
             logger.warning(f"Token inválido: {e}")

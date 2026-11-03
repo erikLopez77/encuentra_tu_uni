@@ -24,7 +24,7 @@ CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
     'authorization',
-    'content-type',  # Necesario para 'text/xml' de las peticiones SOAP
+    'content-type',
     'dnt',
     'origin',
     'user-agent',

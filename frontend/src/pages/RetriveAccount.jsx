@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { ensureCsrfCookie } from '../api/axios';
 // Si usas una imagen local, impórtala así. Si no, usa el enlace de Unsplash.
 // import bgImage from '../assets/images/biblioteca_moderna.jpg';
-const getCsrf = () => {
-    const match = document.cookie.match(/csrftoken=([^;]+)/);
-    return match ? match[1] : '';
-};
 const RetriveAccount = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -41,11 +38,11 @@ const RetriveAccount = () => {
         setLoading(true); // Solo activamos loading si pasó las pruebas locales
 
         try {
+            await ensureCsrfCookie();
             const res = await axios.post("http://localhost:8000/api/v1/auth/retrieve/", {
                 email: email,
                 password: password,
             }, {
-                headers: { 'X-CSRFToken': getCsrf() }
             });
 
             setIsSuccess(true); // exito

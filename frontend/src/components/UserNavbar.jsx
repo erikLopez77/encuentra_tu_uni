@@ -1,14 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api, { clearSessionHint, ensureCsrfCookie, withSessionLock } from '../api/axios';
 
 const UserNavbar = () => {
   const navigate = useNavigate();
+  const [logoutError, setLogoutError] = useState('');
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('usuarioId');
-    navigate('/');
+  const handleLogout = async () => {
+    setLogoutError('');
+    try {
+      await withSessionLock(async () => {
+        await ensureCsrfCookie();
+        await api.post('/api/v1/auth/logout/');
+      });
+      clearSessionHint();
+      navigate('/');
+    } catch (error) {
+      setLogoutError(error.response?.data?.error || 'No se pudo cerrar la sesión. Comprueba la conexión e inténtalo de nuevo.');
+    }
   };
 
   return (
@@ -47,6 +56,7 @@ const UserNavbar = () => {
             </button>
           </div>
         </div>
+        {logoutError && <p role="alert" className="pb-3 text-sm text-red-600">{logoutError}</p>}
       </div>
     </nav>
   );

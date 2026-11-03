@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api, { ensureCsrfCookie } from '../api/axios';
 
 const CreateProfile = () => {
     const navigate = useNavigate();
@@ -52,29 +53,17 @@ const CreateProfile = () => {
         // 4. Petición al Backend
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:8000/api/v1/auth/register/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            await ensureCsrfCookie();
+            const response = await api.post('/api/v1/auth/register/', {
                     username: formData.email, // Usualmente el email es el username
                     email: formData.email,
                     first_name: formData.first_name,
                     last_name: formData.last_name,
                     password: formData.password
-                }),
             });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                // Éxito: Redirigir al login
-                navigate('/login?registered=true');
-            } else {
-                // Error del servidor (ej. el correo ya existe)
-                setError(data.detail || data.error || "Error al crear la cuenta.");
-            }
+            if (response.status >= 200 && response.status < 300) navigate('/login?registered=true');
         } catch (err) {
-            setError("Error de conexión con el servidor.");
+            setError(err.response?.data?.detail || err.response?.data?.error || "Error de conexión con el servidor.");
         } finally {
             setLoading(false);
         }

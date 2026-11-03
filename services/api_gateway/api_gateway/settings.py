@@ -9,26 +9,26 @@ Responsabilidades:
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-gateway-secret-key-change-in-production'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-gateway-secret-key-change-in-production')
 
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 
 # CORS para el frontend
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+FRONTEND_ORIGINS = [
+    origin.strip() for origin in os.environ.get(
+        'FRONTEND_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173'
+    ).split(',') if origin.strip()
 ]
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = FRONTEND_ORIGINS
+CSRF_TRUSTED_ORIGINS = FRONTEND_ORIGINS
 
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -43,6 +43,12 @@ CORS_ALLOW_HEADERS = [
     'x-user-id',
     'x-user-email',
 ]
+CSRF_COOKIE_NAME = 'csrftoken_auth'
+CSRF_COOKIE_HTTPONLY = True
+AUTH_COOKIE_SECURE = os.environ.get('AUTH_COOKIE_SECURE', 'true' if not DEBUG else 'false').lower() == 'true'
+AUTH_COOKIE_SAMESITE = os.environ.get('AUTH_COOKIE_SAMESITE', 'Lax')
+CSRF_COOKIE_SAMESITE = AUTH_COOKIE_SAMESITE
+CSRF_COOKIE_SECURE = AUTH_COOKIE_SECURE
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -98,11 +104,20 @@ DATABASES = {
 
 # Configuración JWT - debe coincidir con auth_service para validar tokens
 SIMPLE_JWT = {
-    'SIGNING_KEY': 'django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5',
+    'SIGNING_KEY': os.environ.get(
+        'JWT_SIGNING_KEY',
+        os.environ.get(
+            'DJANGO_SECRET_KEY',
+            'django-insecure-g(sopya(a2o$cmy*@x-!^m&)-y0%nr=*mb7$p+sl97m2#ysvk5',
+        ),
+    ),
     'VERIFYING_KEY': None,
     'ALGORITHM': 'HS256',
     'AUTH_HEADER_TYPES': ('Bearer',),
-    'ACCESS_TOKEN_LIFETIME_MINUTES': 60,
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # URLs de los servicios microservicios (para el proxy)
@@ -112,14 +127,29 @@ SERVICE_URLS = {
     'university': os.environ.get('UNIVERSITY_SERVICE_URL', 'http://localhost:8001'),
 }
 
+# Configuración de Redis para blacklist de JWT (compartido con auth_service)
+REDIS_LOCATION = os.environ.get('REDIS_LOCATION', 'redis://redis:6379/1')
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_LOCATION,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'protocol': 2,
+            },
+        },
+    }
+}
+
 # Rutas públicas que no requieren autenticación
 PUBLIC_PATHS = [
     '/api/v1/auth/register/',
     '/api/v1/auth/retrieve/',
-    '/api/v1/auth/soap_login/',
     '/api/v1/auth/token/',
     '/api/v1/auth/token/refresh/',
-    '/api/v1/auth/token/verify/',
+    '/api/v1/auth/logout/',
+    '/api/v1/auth/csrf/',
     '/api/v1/universidades/',          # listado público de universidades
     '/api/v1/universidades/<int:pk>/', # detalle público de una universidad
     '/health/',

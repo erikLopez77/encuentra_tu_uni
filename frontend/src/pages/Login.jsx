@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+import api, { ensureCsrfCookie } from '../api/axios';
 
 const Login = () => {
     const backgroundUrl = "https://images.unsplash.com/photo-1568667256549-094345857637?q=80&w=2000&auto=format&fit=crop";
@@ -29,90 +28,20 @@ const Login = () => {
         setError('');
         setLoading(true);
 
-        const soapRequest = `<?xml version="1.0" encoding="utf-8"?>
-<soap11env:Envelope xmlns:soap11env="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="ssproyecto.auth.soap">
-    <soap11env:Body>
-        <tns:authenticate_user>
-            <tns:username>${email}</tns:username>
-            <tns:password>${password}</tns:password>
-        </tns:authenticate_user>
-    </soap11env:Body>
-</soap11env:Envelope>`;
-
         try {
-            const response = await fetch(API + '/auth/soap_login/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/xml',
-                },
-                credentials: 'include',
-                body: soapRequest
-            });
+            await ensureCsrfCookie();
+            const { data } = await api.post('/api/v1/auth/token/', { username: email, password });
+            localStorage.setItem('usuarioId', String(data.user_id));
+            window.dispatchEvent(new Event('auth-change'));
+            navigate('/dashboard');
 
-            const textResponse = await response.text();
-
-            if (textResponse.includes("SUCCESS")) {
-                // Extraer el resultado de la etiqueta SOAP
-                const matchResult = textResponse.match(/<tns:authenticate_userResult>(.*?)<\/tns:authenticate_userResult>/) || textResponse.match(/<authenticate_userResult>(.*?)<\/authenticate_userResult>/);
-                const resultText = matchResult ? matchResult[1] : '';
-
-                // Obtener el ID del usuario (ejemplo: "SUCCESS:5" -> id = 5)
-                let userId = null;
-                if (resultText.startsWith("SUCCESS")) {
-                    const parts = resultText.split(":");
-                    if (parts.length > 1) {
-                        userId = parts[1].trim();
-                        // Guardamos el ID en localStorage para que las demás vistas lo usen
-                        localStorage.setItem('usuarioId', userId);
-                    }
-                }
-
-                const tokenResponse = await fetch(API + '/auth/token/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: email, password }),
-                });
-                const tokenData = await tokenResponse.json();
-                if (!tokenResponse.ok) {
-                    setError(tokenData.error || 'No se pudo crear la sesión segura.');
-                    return;
-                }
-                localStorage.setItem('access_token', tokenData.access);
-                localStorage.setItem('refresh_token', tokenData.refresh);
-                localStorage.setItem('usuarioId', String(tokenData.user_id || userId));
-                window.dispatchEvent(new Event('auth-change'));
-
-                navigate('/dashboard');
-
-                // Hacer la petición a favoritos pasando el usuarioId explícitamente
-                if (userId) {
-                    const res = await fetch(API + '/favoritos/?usuarioId=' + userId, {
-                        method: 'GET',
-                        headers: { Authorization: 'Bearer ' + tokenData.access }
-                    });
-
-                    const contentType = res.headers.get("content-type");
-                    if (contentType && contentType.includes("application/json")) {
-                        const favData = await res.json();
-                        console.log("Favoritos cargados:", favData);
-                    } else {
-                        const errorText = await res.text();
-                        console.error("El servidor respondió con HTML (Error 500):", errorText);
-                    }
-                }
-            } else if (textResponse.includes("INVALID_CREDENTIALS")) {
-                setError('Correo o contraseña incorrectos.');
-            } else if (textResponse.includes('faultstring')) {
-                // Extraer el mensaje del SOAP Fault para debug
-                const match = textResponse.match(/\u003cfaultstring\u003e(.+?)\u003c\/faultstring\u003e/);
-                const faultMsg = match ? match[1] : 'Error desconocido en el servicio';
-                setError(`Error del servidor: ${faultMsg}`);
-            } else {
-                setError('Respuesta inesperada del servicio de autenticación.');
-            }
+            // Los favoritos son accesorios; no deben hacer fallar el inicio de sesión.
+            api.get(`/api/v1/favoritos/?usuarioId=${data.user_id}`)
+                .catch((favoriteError) => console.warn('No se pudieron precargar favoritos:', favoriteError));
         } catch (err) {
-            setError('Error de red. Asegúrate de que el backend y Redis están en ejecución.');
-            console.error(err);
+            if (err.response?.status === 401) setError('Correo o contraseña incorrectos.');
+            else if (err.response?.status === 403) setError('La verificación de seguridad falló. Recarga la página e inténtalo de nuevo.');
+            else setError(err.response?.data?.error || 'Error de red. Asegúrate de que el backend y Redis están en ejecución.');
         } finally {
             setLoading(false);
         }
